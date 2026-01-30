@@ -1,12 +1,14 @@
 const ICONS = {"crown": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 7l4 6 5-7 5 7 4-6v13H3V7z\"></path><path d=\"M3 20h18\"></path></svg>", "sparkles": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z\"></path><path d=\"M5 13l.8 2.4L8 16l-2.2.6L5 19l-.8-2.4L2 16l2.2-.6L5 13z\"></path><path d=\"M19 13l.8 2.4L22 16l-2.2.6L19 19l-.8-2.4L16 16l2.2-.6L19 13z\"></path></svg>", "zap": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M13 2L3 14h9l-1 8 10-12h-9l1-8z\"></path></svg>", "target": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"></circle><circle cx=\"12\" cy=\"12\" r=\"6\"></circle><circle cx=\"12\" cy=\"12\" r=\"2\"></circle></svg>", "trophy": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M8 21h8\"></path><path d=\"M12 17v4\"></path><path d=\"M7 4h10v3a5 5 0 0 1-10 0V4z\"></path><path d=\"M17 4h3v2a4 4 0 0 1-4 4\"></path><path d=\"M7 4H4v2a4 4 0 0 0 4 4\"></path></svg>", "megaphone": "<svg viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M3 11v2a2 2 0 0 0 2 2h2l5 4V5L7 9H5a2 2 0 0 0-2 2z\"></path><path d=\"M16 8a3 3 0 0 1 0 8\"></path><path d=\"M19 5a7 7 0 0 1 0 14\"></path></svg>"};
 
-function tierFor(level) {
+function tierFor(level, isUltimate) {
+  if (isUltimate) return { title: "ULTIMATE BOSS", colorVar: "--yellow", icon: "trophy" };
   if (level >= 90) return { title: "LEGENDARY BOSS", colorVar: "--yellow", icon: "trophy" };
   if (level >= 70) return { title: "ELITE BOSS", colorVar: "--purple", icon: "crown" };
   if (level >= 50) return { title: "RISING BOSS", colorVar: "--blue", icon: "zap" };
   if (level >= 30) return { title: "APPRENTICE BOSS", colorVar: "--green", icon: "target" };
   return { title: "NOVICE BOSS", colorVar: "--gray", icon: "sparkles" };
 }
+
 
 function setColor(el, cssVarName) {
   const color = getComputedStyle(document.documentElement).getPropertyValue(cssVarName).trim();
@@ -33,19 +35,52 @@ document.addEventListener("DOMContentLoaded", () => {
   const backBtn = document.getElementById("backBtn");
 
   // -------------------------
-  // 1-hour cooldown (localStorage)
+  // Weighted cooldown (localStorage)
+  //  - 80%: 50m – 1h15m
+  //  - 20%: 1h15m – 3h
   // -------------------------
-  const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
-  const STORAGE_KEY = "boss_last_check_ms";
+  const COOLDOWN_KEY = "boss_cooldown"; // { startMs:number, durationMs:number }
 
-  function getLastCheck() {
-    const v = localStorage.getItem(STORAGE_KEY);
-    const n = v ? Number(v) : 0;
-    return Number.isFinite(n) ? n : 0;
+  function randomIntInclusive(min, max) {
+    return Math.floor(Math.random() * (max - min + 1)) + min;
   }
-  function setLastCheck(ms) {
-    localStorage.setItem(STORAGE_KEY, String(ms));
+
+  function generateCooldownMs() {
+    const r = Math.random();
+
+    // 80% chance: 50 minutes – 1 hour 15 minutes
+    if (r < 0.9) {
+      const min = 50 * 60 * 1000;
+      const max = 75 * 60 * 1000;
+      return min + Math.random() * (max - min);
+    }
+
+    // 20% chance: 1 hour 15 minutes – 3 hours
+    const min = 75 * 60 * 1000;
+    const max = 3 * 60 * 60 * 1000;
+    return min + Math.random() * (max - min);
   }
+
+  function getCooldownData() {
+    try {
+      return JSON.parse(localStorage.getItem(COOLDOWN_KEY)) || null;
+    } catch {
+      return null;
+    }
+  }
+
+  function setCooldownData(startMs, durationMs) {
+    localStorage.setItem(COOLDOWN_KEY, JSON.stringify({ startMs, durationMs }));
+  }
+
+  function getRemainingCooldownMs() {
+    const data = getCooldownData();
+    if (!data) return 0;
+
+    const now = Date.now();
+    return (data.startMs + data.durationMs) - now;
+  }
+
   function formatRemaining(ms) {
     const totalSeconds = Math.ceil(ms / 1000);
     const m = Math.floor(totalSeconds / 60);
@@ -55,24 +90,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let cooldownTimer = null;
+
   function updateCooldownUI() {
-    const last = getLastCheck();
-    const now = Date.now();
-    const remaining = (last + COOLDOWN_MS) - now;
+    const remaining = getRemainingCooldownMs();
 
     if (remaining > 0) {
-      // Don't override the "Checking..." label while animating
-      if (!checkBtn.disabled) {
-        checkBtn.disabled = true;
-      }
-      // If not currently animating, show countdown text
+      if (!checkBtn.disabled) checkBtn.disabled = true;
       if (btnText.textContent !== "Checking...") {
         btnText.textContent = `Come back in ${formatRemaining(remaining)}`;
       }
       return true;
     }
 
-    // Ready
     if (btnText.textContent !== "Checking...") {
       btnText.textContent = "Check My Boss Level";
     }
@@ -89,6 +118,41 @@ document.addEventListener("DOMContentLoaded", () => {
         cooldownTimer = null;
       }
     }, 1000);
+  }
+
+
+  // -------------------------
+  // Weighted boss roll + hidden Ultimate Boss
+  //  - 1/10000: Ultimate Boss
+  //  - Otherwise:
+  //      80%: 15–85
+  //      15%: 5–15 and 85–95 (split evenly)
+  //       5%: 1–5 and 95–100 (split evenly)
+  // Notes: to avoid double-counting edge values, the actual integer ranges are:
+  //   80%: 15–85
+  //   15%: 5–14 or 86–95
+  //    5%: 1–4 or 96–100
+  // -------------------------
+  function rollBossLevel() {
+    // Hidden Ultimate Boss chance
+    const ultimate = (Math.floor(Math.random() * 10000) === 0);
+    if (ultimate) return { level: 100, isUltimate: true };
+
+    const r = Math.random();
+
+    if (r < 0.80) {
+      return { level: randomIntInclusive(15, 85), isUltimate: false };
+    }
+
+    if (r < 0.95) {
+      // split 15% bucket into low/high halves
+      if (Math.random() < 0.5) return { level: randomIntInclusive(5, 14), isUltimate: false };
+      return { level: randomIntInclusive(86, 95), isUltimate: false };
+    }
+
+    // last 5%
+    if (Math.random() < 0.5) return { level: randomIntInclusive(1, 4), isUltimate: false };
+    return { level: randomIntInclusive(96, 100), isUltimate: false };
   }
 
   // -------------------------
@@ -197,8 +261,8 @@ document.addEventListener("DOMContentLoaded", () => {
     result.classList.add("hidden");
   }
 
-  function showResult(level) {
-    const info = tierFor(level);
+  function showResult(level, isUltimate) {
+    const info = tierFor(level, isUltimate);
 
     resultNumber.textContent = String(level);
     resultTier.textContent = info.title;
@@ -218,42 +282,40 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   let timer = null;
-
   checkBtn.addEventListener("click", () => {
-    // Enforce 1-hour cooldown
-    const last = getLastCheck();
-    const now = Date.now();
-    const remaining = (last + COOLDOWN_MS) - now;
-
-    if (remaining > 0) {
-      btnText.textContent = `Come back in ${formatRemaining(remaining)}`;
-      startCooldownTicker();
-      return;
-    }
-
-    // Lock immediately to prevent spam
-    setLastCheck(now);
-    updateCooldownUI();
-    startCooldownTicker();
-
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
-    }
-
-    setAnimating(true);
-    showPlaceholder();
-
-    timer = setTimeout(() => {
-      const level = Math.floor(Math.random() * 100) + 1;
-      showResult(level);
-      setAnimating(false);
-      timer = null;
-
-      // After finishing animation, re-apply cooldown label if needed
+      const remaining = getRemainingCooldownMs();
+  
+      if (remaining > 0) {
+        btnText.textContent = `Come back in ${formatRemaining(remaining)}`;
+        startCooldownTicker();
+        return;
+      }
+  
+      // Lock immediately with a NEW weighted random cooldown
+      const now = Date.now();
+      const cooldownMs = generateCooldownMs();
+      setCooldownData(now, cooldownMs);
+  
       updateCooldownUI();
-    }, 600);
-  });
+      startCooldownTicker();
+  
+      if (timer) {
+        clearTimeout(timer);
+        timer = null;
+      }
+  
+      setAnimating(true);
+      showPlaceholder();
+  
+      timer = setTimeout(() => {
+        const roll = rollBossLevel();
+        showResult(roll.level, roll.isUltimate);
+        setAnimating(false);
+        timer = null;
+  
+        updateCooldownUI();
+      }, 600);
+    });
 
 
   // Slide to ads
