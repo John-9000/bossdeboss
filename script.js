@@ -14,7 +14,6 @@ function setColor(el, cssVarName) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const slider = document.getElementById("slider");
 
   // Boss checker elements
   const checkBtn = document.getElementById("checkBtn");
@@ -28,291 +27,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const btnIcon = document.getElementById("btnIcon");
   const btnText = document.getElementById("btnText");
+  // Ads navigation (separate pages now)
+  // Home page uses a normal link to commercials.html.
 
-  // Ads navigation
-  const toAdsBtn = document.getElementById("toAdsBtn");
-  const backBtn = document.getElementById("backBtn");
-
-  // -------------------------
-  // 1-hour cooldown (localStorage)
-  // -------------------------
-  const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
-  const STORAGE_KEY = "boss_last_check_ms";
-
-  function getLastCheck() {
-    const v = localStorage.getItem(STORAGE_KEY);
-    const n = v ? Number(v) : 0;
-    return Number.isFinite(n) ? n : 0;
-  }
-  function setLastCheck(ms) {
-    localStorage.setItem(STORAGE_KEY, String(ms));
-  }
-  function formatRemaining(ms) {
-    const totalSeconds = Math.ceil(ms / 1000);
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    if (m <= 0) return `${s}s`;
-    return `${m}m ${s}s`;
-  }
-
-  let cooldownTimer = null;
-  function updateCooldownUI() {
-    const last = getLastCheck();
-    const now = Date.now();
-    const remaining = (last + COOLDOWN_MS) - now;
-
-    if (remaining > 0) {
-      // Don't override the "Checking..." label while animating
-      if (!checkBtn.disabled) {
-        checkBtn.disabled = true;
-      }
-      // If not currently animating, show countdown text
-      if (btnText.textContent !== "Checking...") {
-        btnText.textContent = `Come back in ${formatRemaining(remaining)}`;
-      }
-      return true;
-    }
-
-    // Ready
-    if (btnText.textContent !== "Checking...") {
-      btnText.textContent = "Check My Boss Level";
-    }
-    checkBtn.disabled = false;
-    return false;
-  }
-
-  function startCooldownTicker() {
-    if (cooldownTimer) clearInterval(cooldownTimer);
-    cooldownTimer = setInterval(() => {
-      const stillCooling = updateCooldownUI();
-      if (!stillCooling) {
-        clearInterval(cooldownTimer);
-        cooldownTimer = null;
-      }
-    }, 1000);
-  }
-
-  // -------------------------
-  // Cookie consent + AdSense load gating (localStorage)
-  // -------------------------
-  const CONSENT_KEY = "boss_cookie_consent"; // "granted" | "denied"
-  const cookieBanner = document.getElementById("cookieBanner");
-  const cookieAccept = document.getElementById("cookieAccept");
-  const cookieDecline = document.getElementById("cookieDecline");
-
-  // Replace with your real Publisher ID later:
-  const ADSENSE_CLIENT = "ca-pub-XXXXXXXXXXXXXXXX";
-  const ADSENSE_SRC = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT}`;
-
-  let adsenseLoaded = false;
-
-  function getConsent() {
-    return localStorage.getItem(CONSENT_KEY);
-  }
-  function setConsent(v) {
-    localStorage.setItem(CONSENT_KEY, v);
-  }
-  function showCookieBanner(show) {
-    if (!cookieBanner) return;
-    cookieBanner.classList.toggle("hidden", !show);
-  }
-
-  function loadAdSenseOnce() {
-    if (adsenseLoaded) return;
-    adsenseLoaded = true;
-
-    const s = document.createElement("script");
-    s.async = true;
-    s.src = ADSENSE_SRC;
-    s.crossOrigin = "anonymous";
-    document.head.appendChild(s);
-  }
-
-  function tryRenderAds() {
-    // Only attempt if consent granted
-    if (getConsent() !== "granted") return;
-
-    loadAdSenseOnce();
-
-    // Push ads for any ins that isn't initialized
-    const units = document.querySelectorAll("ins.adsbygoogle");
-    units.forEach((u) => {
-      // Prevent duplicate pushes
-      if (u.getAttribute("data-ads-init") === "1") return;
-      u.setAttribute("data-ads-init", "1");
-
-      // AdSense requires this push call after script is present
-      (window.adsbygoogle = window.adsbygoogle || []).push({});
-    });
-  }
-
-
-  // initial icons
-  // Cookie banner on first load (until user chooses)
-  const consent = getConsent();
-  if (consent !== "granted" && consent !== "denied") {
-    showCookieBanner(true);
-  } else {
-    showCookieBanner(false);
-    if (consent === "granted") {
-      // Preload ads script in the background; actual render happens on ads screen
-      loadAdSenseOnce();
-    }
-  }
-
-  cookieAccept?.addEventListener("click", () => {
-    setConsent("granted");
-    showCookieBanner(false);
-    tryRenderAds();
-  });
-
-  cookieDecline?.addEventListener("click", () => {
-    setConsent("denied");
-    showCookieBanner(false);
-  });
-
-  // Enforce cooldown on load (survives refresh)
-  updateCooldownUI();
-  startCooldownTicker();
-  btnIcon.innerHTML = ICONS.target;
-
-  function setAnimating(isAnimating) {
-    if (isAnimating) checkBtn.disabled = true;
-
-    placeholder.classList.toggle("pulse", isAnimating);
-    placeholderText.textContent = isAnimating ? "Calculating..." : "Press the button to check";
-
-    btnText.textContent = isAnimating ? "Checking..." : "Check My Boss Level";
-
-    if (isAnimating) {
-      btnIcon.innerHTML = ICONS.sparkles;
-      btnIcon.querySelector("svg")?.classList.add("spin");
-    } else {
-      btnIcon.innerHTML = ICONS.target;
-      btnIcon.querySelector("svg")?.classList.remove("spin");
-    }
-  }
-
-  function showPlaceholder() {
-    placeholder.classList.remove("hidden");
-    result.classList.add("hidden");
-  }
-
-  function showResult(level, isUltimate) {
-// Show cinematic images only for 100 or Ultimate Boss
-const showImg = !!isUltimate || level === 100;
-
-if (bossImage) {
-  if (showImg) {
-    bossImage.src = isUltimate ? "./images/ultimate-boss.png" : "./images/legendary-100.png";
-    bossImage.classList.remove("hidden");
-    result.classList.add("hasImage");
-  } else {
-    bossImage.removeAttribute("src");
-    bossImage.classList.add("hidden");
-    result.classList.remove("hasImage");
-  }
-}
-
-const info = tierFor(level);
-
-
-    resultNumber.textContent = String(level);
-    resultTier.textContent = info.title;
-
-    setColor(resultNumber, info.colorVar);
-    setColor(resultTier, info.colorVar);
-
-    resultIcon.innerHTML = ICONS[info.icon] || ICONS.crown;
-    const svg = resultIcon.querySelector("svg");
-    if (svg) {
-      svg.classList.add("icon");
-      setColor(svg, info.colorVar);
-    }
-
-    placeholder.classList.add("hidden");
-    result.classList.remove("hidden");
-  }
-
-  let timer = null;
-
-  checkBtn.addEventListener("click", () => {
-    // Enforce 1-hour cooldown
-    const last = getLastCheck();
-    const now = Date.now();
-    const remaining = (last + COOLDOWN_MS) - now;
-
-    if (remaining > 0) {
-      btnText.textContent = `Come back in ${formatRemaining(remaining)}`;
-      startCooldownTicker();
-      return;
-    }
-
-    // Lock immediately to prevent spam
-    setLastCheck(now);
-    updateCooldownUI();
-    startCooldownTicker();
-
-    if (timer) {
-      clearTimeout(timer);
-      timer = null;
-    }
-
-    setAnimating(true);
-    showPlaceholder();
-
-    timer = setTimeout(() => {
-      // Hidden 1/10000 chance for Ultimate Boss
-const isUltimate = Math.floor(Math.random() * 10000) === 0;
-const level = isUltimate ? 100 : (Math.floor(Math.random() * 100) + 1);
-
-      showResult(level, isUltimate);
-      setAnimating(false);
-      timer = null;
-
-      // After finishing animation, re-apply cooldown label if needed
-      updateCooldownUI();
-    }, 600);
-  });
-
-
-  // Go to commercials section (scroll, not slide) — keeps finger scrolling working
-  const homeSection = document.getElementById("home");
-  const adsSection  = document.getElementById("ads");
-
-  function goAds() {
-    adsSection?.scrollIntoView({ behavior: "smooth", block: "start" });
-    if (location.hash !== "#ads") history.pushState({ page: "ads" }, "", "#ads");
-    tryRenderAds();
-  }
-
-  function goHome() {
-    homeSection?.scrollIntoView({ behavior: "smooth", block: "start" });
-    // Remove hash without reloading
-    const cleanUrl = location.pathname + location.search;
-    if (location.hash) history.pushState({ page: "home" }, "", cleanUrl);
-  }
-
-  toAdsBtn.addEventListener("click", goAds);
-
-  // Back button on commercials page
-  backBtn.addEventListener("click", goHome);
-
-  // Optional: Escape to go back
+  // Optional: allow Escape to go back
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") goHome();
+    if (e.key === "Escape") {
+      if (location.hash === "#ads") history.back();
+      else slider.classList.remove("is-ads");
+    }
   });
 
-  // Handle browser back/forward
+  // Respond to browser back/forward and mobile swipe-back gestures
   window.addEventListener("popstate", () => {
-    if (location.hash === "#ads") goAds();
-    else goHome();
+    if (location.hash === "#ads") {
+      slider.classList.add("is-ads");
+      tryRenderAds();
+    } else {
+      slider.classList.remove("is-ads");
+    }
   });
 
-  // Deep link support
+  // If user loads the page directly with #ads, show commercials page
   if (location.hash === "#ads") {
-    // jump immediately on load
-    adsSection?.scrollIntoView({ behavior: "auto", block: "start" });
+    slider.classList.add("is-ads");
     tryRenderAds();
   }
 

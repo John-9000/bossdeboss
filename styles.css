@@ -24,7 +24,7 @@ body{
   color: var(--white);
   background: linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg1));
   overflow-x: hidden;
-  overflow-y: auto; /* allow scrolling */
+  overflow-y: auto;
 }
 
 .page{
@@ -33,22 +33,7 @@ body{
   position: relative;
 }
 
-/* Slider moves up by 100vh to reveal screen 2 */
-.slider{
-  height: auto; /* normal document flow */
-  width: 100%;
-}
-/* sliding mode removed; we scroll instead */
-
-
-.screen{
-  min-height: 100vh;
-  height: auto;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  padding: 16px;
-}
+/* Slider styles removed (separate pages now) */
 
 .wrap{
   width:100%;
@@ -218,13 +203,13 @@ body{
 }
 
 .tierGrid{
-  /* Flex + wrap behaves better with browser zoom / Android "Display size".
-     Center the last row so a single item (e.g., Legendary) doesn't stick left. */
   display:flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
+  flex-wrap:wrap;
+  gap: 12px;
+  justify-content:center;
+  align-items:stretch;
 }
+
 
 .tierBox{
   /* Responsive box sizing so tiers wrap nicely */
@@ -420,78 +405,12 @@ body{
   z-index: 1;
 }
 
-/* -----------------------------
-   Zoom / Display-size resilience
-   (Android "Screen zoom" friendly)
------------------------------- */
 
-/* Make screens scroll-safe if content becomes taller due to user text scaling */
-@supports (height: 100dvh) {
-  .page { height: 100dvh; }
-  .screen { height: 100dvh; }
-  .slider.is-ads { transform: translateY(-100dvh); }
+/* Responsive tier boxes */
+.tierBox{flex: 1 1 140px; max-width: 190px;}
+@media (max-width: 360px){
+  .tierBox{flex-basis: 120px; max-width: 170px;}
 }
 
-/* Prevent the Screen 1 footer/button from peeking on the commercials screen */
-.slider.is-ads .screen:first-child .footerArea,
-.slider.is-ads .screen:first-child .fineLinks{
-  display: none !important;
-}
-.slider.is-ads .screen:first-child{
-  pointer-events: none;
-}
-
-/* Responsive card sizing */
-.wrap{
-  max-width: min(448px, 100%);
-}
-
-/* Replace fixed heights with flexible sizing */
-.placeholder{
-  min-height: 160px;
-  height: auto;
-  padding: 18px;
-}
-
-/* Clamp large typography so it stays inside cards on zoomed displays */
-.title{
-  font-size: clamp(22px, 5.8vw, 30px);
-}
-.subtitle{
-  font-size: clamp(13px, 3.4vw, 14px);
-}
-.placeholderText{
-  font-size: clamp(16px, 4.4vw, 18px);
-}
-
-.resultNumber{
-  font-size: clamp(44px, 14vw, 64px);
-}
-.resultTier{
-  font-size: clamp(16px, 4.6vw, 18px);
-}
-
-/* Buttons: allow text to wrap, avoid overflow */
-.checkBtn{
-  height: auto;
-  min-height: 64px;
-  padding: 14px 16px;
-  font-size: clamp(16px, 4.8vw, 20px);
-  white-space: normal;
-}
-.checkBtn--thin{
-  min-height: 46px;
-  font-size: clamp(14px, 4.0vw, 16px);
-}
-
-/* Boss tiers: allow wrapping when viewport is "smaller" due to zoom */
-.tierGrid{
-  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
-  gap: 8px;
-}
-
-/* Keep ads box stable but flexible */
-.adBox{
-  width: 100%;
-  min-height: 250px;
-}
+a.checkBtn{display:block; text-decoration:none;}
+.adsTitle{margin: 0 0 12px; font-size: clamp(20px, 6vw, 28px); text-align:center; color: var(--text); opacity: .9;}
