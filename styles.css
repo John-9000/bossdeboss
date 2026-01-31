@@ -204,17 +204,22 @@ body{
 
 .tierGrid{
   display:flex;
-  flex-wrap:wrap;
+  flex-wrap:nowrap;           /* default: single row */
   gap: 12px;
   justify-content:center;
   align-items:stretch;
 }
 
+/* When the effective viewport gets narrow (e.g. user zooms in),
+   allow wrapping, while keeping rows centered. */
+@media (max-width: 340px){
+  .tierGrid{ flex-wrap:wrap; }
+}
 
 .tierBox{
-  /* Responsive box sizing so tiers wrap nicely */
-  flex: 1 1 108px;
-  max-width: 132px;
+  flex: 1 1 0;
+  min-width: 64px;
+  max-width: 140px;
   padding: 10px 8px;
   border-radius: 12px;
   background: rgba(15,23,42,0.5);
