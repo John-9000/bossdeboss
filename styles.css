@@ -38,6 +38,8 @@ body{
 .wrap{
   width:100%;
   max-width: 448px; /* max-w-md */
+  margin: 0 auto;               /* center on desktop */
+  padding: 28px 16px;           /* breathing room on all screens */
 }
 
 .card{
@@ -157,6 +159,11 @@ body{
   background: linear-gradient(90deg, #f59e0b, #f97316, #ef4444);
   box-shadow: 0 14px 28px rgba(249,115,22,0.20);
   transition: transform .18s ease, filter .18s ease, opacity .18s ease;
+
+  /* Important: this button is sometimes an <a> and sometimes a <button>. */
+  display:flex;
+  align-items:center;           /* vertical centering */
+  justify-content:center;
 }
 
 .checkBtn:hover{ filter: brightness(1.06); transform: scale(1.02); }
@@ -417,5 +424,5 @@ body{
   .tierBox{flex-basis: 120px; max-width: 170px;}
 }
 
-a.checkBtn{display:block; text-decoration:none;}
+a.checkBtn{ text-decoration:none; }
 .adsTitle{margin: 0 0 12px; font-size: clamp(20px, 6vw, 28px); text-align:center; color: var(--text); opacity: .9;}
