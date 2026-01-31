@@ -219,12 +219,18 @@ body{
 }
 
 .tierGrid{
-  display:grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
+  /* Flex + wrap behaves better with browser zoom / Android "Display size".
+     Center the last row so a single item (e.g., Legendary) doesn't stick left. */
+  display:flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
 }
 
 .tierBox{
+  /* Responsive box sizing so tiers wrap nicely */
+  flex: 1 1 108px;
+  max-width: 132px;
   padding: 10px 8px;
   border-radius: 12px;
   background: rgba(15,23,42,0.5);
@@ -379,4 +385,114 @@ body{
 @media (min-width: 520px){
   .cookieCard{ flex-direction: row; align-items: center; justify-content: space-between; }
   .cookieText{ max-width: 420px; }
+}
+
+
+/* Boss images (100 / Ultimate) */
+.resultArea{
+  overflow: hidden; /* crop images to the rectangle */
+}
+
+.result{
+  position: relative;
+}
+
+.bossImage{
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* fill rectangle, crop excess */
+  z-index: 0;
+}
+
+/* If an image is active, hide the normal number/tier/icon so nothing overlays */
+.result.hasImage .resultNumber,
+.result.hasImage .resultTier,
+.result.hasImage .resultIcon{
+  opacity: 0;
+}
+
+/* Make sure text stays above image for normal results */
+.resultNumber,
+.resultTier,
+.resultIcon{
+  position: relative;
+  z-index: 1;
+}
+
+/* -----------------------------
+   Zoom / Display-size resilience
+   (Android "Screen zoom" friendly)
+------------------------------ */
+
+/* Make screens scroll-safe if content becomes taller due to user text scaling */
+@supports (height: 100dvh) {
+  .page { height: 100dvh; }
+  .screen { height: 100dvh; }
+  .slider.is-ads { transform: translateY(-100dvh); }
+}
+
+/* Prevent the Screen 1 footer/button from peeking on the commercials screen */
+.slider.is-ads .screen:first-child .footerArea,
+.slider.is-ads .screen:first-child .fineLinks{
+  display: none !important;
+}
+.slider.is-ads .screen:first-child{
+  pointer-events: none;
+}
+
+/* Responsive card sizing */
+.wrap{
+  max-width: min(448px, 100%);
+}
+
+/* Replace fixed heights with flexible sizing */
+.placeholder{
+  min-height: 160px;
+  height: auto;
+  padding: 18px;
+}
+
+/* Clamp large typography so it stays inside cards on zoomed displays */
+.title{
+  font-size: clamp(22px, 5.8vw, 30px);
+}
+.subtitle{
+  font-size: clamp(13px, 3.4vw, 14px);
+}
+.placeholderText{
+  font-size: clamp(16px, 4.4vw, 18px);
+}
+
+.resultNumber{
+  font-size: clamp(44px, 14vw, 64px);
+}
+.resultTier{
+  font-size: clamp(16px, 4.6vw, 18px);
+}
+
+/* Buttons: allow text to wrap, avoid overflow */
+.checkBtn{
+  height: auto;
+  min-height: 64px;
+  padding: 14px 16px;
+  font-size: clamp(16px, 4.8vw, 20px);
+  white-space: normal;
+}
+.checkBtn--thin{
+  min-height: 46px;
+  font-size: clamp(14px, 4.0vw, 16px);
+}
+
+/* Boss tiers: allow wrapping when viewport is "smaller" due to zoom */
+.tierGrid{
+  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+  gap: 8px;
+}
+
+/* Keep ads box stable but flexible */
+.adBox{
+  width: 100%;
+  min-height: 250px;
 }

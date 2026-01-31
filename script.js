@@ -24,6 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const resultNumber = document.getElementById("resultNumber");
   const resultTier = document.getElementById("resultTier");
   const resultIcon = document.getElementById("resultIcon");
+  const bossImage = document.getElementById("bossImage");
 
   const btnIcon = document.getElementById("btnIcon");
   const btnText = document.getElementById("btnText");
@@ -197,8 +198,24 @@ document.addEventListener("DOMContentLoaded", () => {
     result.classList.add("hidden");
   }
 
-  function showResult(level) {
-    const info = tierFor(level);
+  function showResult(level, isUltimate) {
+// Show cinematic images only for 100 or Ultimate Boss
+const showImg = !!isUltimate || level === 100;
+
+if (bossImage) {
+  if (showImg) {
+    bossImage.src = isUltimate ? "./images/ultimate-boss.png" : "./images/legendary-100.png";
+    bossImage.classList.remove("hidden");
+    result.classList.add("hasImage");
+  } else {
+    bossImage.removeAttribute("src");
+    bossImage.classList.add("hidden");
+    result.classList.remove("hasImage");
+  }
+}
+
+const info = tierFor(level);
+
 
     resultNumber.textContent = String(level);
     resultTier.textContent = info.title;
@@ -245,8 +262,11 @@ document.addEventListener("DOMContentLoaded", () => {
     showPlaceholder();
 
     timer = setTimeout(() => {
-      const level = Math.floor(Math.random() * 100) + 1;
-      showResult(level);
+      // Hidden 1/10000 chance for Ultimate Boss
+const isUltimate = Math.floor(Math.random() * 10000) === 0;
+const level = isUltimate ? 100 : (Math.floor(Math.random() * 100) + 1);
+
+      showResult(level, isUltimate);
       setAnimating(false);
       timer = null;
 
