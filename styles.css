@@ -23,28 +23,27 @@ body{
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
   color: var(--white);
   background: linear-gradient(135deg, var(--bg1), var(--bg2), var(--bg1));
-  overflow: hidden; /* needed for the sliding pages */
+  overflow-x: hidden;
+  overflow-y: auto; /* allow scrolling */
 }
 
 .page{
-  height:100vh;
+  min-height:100vh;
   width:100%;
   position: relative;
 }
 
 /* Slider moves up by 100vh to reveal screen 2 */
 .slider{
-  height: 200vh;     /* two screens stacked */
+  height: auto; /* normal document flow */
   width: 100%;
-  transition: transform 520ms cubic-bezier(.2,.9,.2,1);
-  will-change: transform;
 }
-.slider.is-ads{
-  transform: translateY(-100vh);
-}
+/* sliding mode removed; we scroll instead */
+
 
 .screen{
-  height: 100vh;
+  min-height: 100vh;
+  height: auto;
   display:flex;
   align-items:center;
   justify-content:center;

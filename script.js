@@ -276,47 +276,43 @@ const level = isUltimate ? 100 : (Math.floor(Math.random() * 100) + 1);
   });
 
 
-  // Slide to ads
-  toAdsBtn.addEventListener("click", () => {
-    slider.classList.add("is-ads");
-    // Add a history entry so Android/iOS swipe-back + browser back work naturally
-    if (location.hash !== "#ads") {
-      history.pushState({ page: "ads" }, "", "#ads");
-    }
-    // If consent granted, render ads now
+  // Go to commercials section (scroll, not slide) — keeps finger scrolling working
+  const homeSection = document.getElementById("home");
+  const adsSection  = document.getElementById("ads");
+
+  function goAds() {
+    adsSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (location.hash !== "#ads") history.pushState({ page: "ads" }, "", "#ads");
     tryRenderAds();
-  });
+  }
 
-// Back to first page
-  backBtn.addEventListener("click", () => {
-    if (location.hash === "#ads") {
-      history.back();
-    } else {
-      slider.classList.remove("is-ads");
-    }
-  });
+  function goHome() {
+    homeSection?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Remove hash without reloading
+    const cleanUrl = location.pathname + location.search;
+    if (location.hash) history.pushState({ page: "home" }, "", cleanUrl);
+  }
 
-// Optional: allow Escape to go back
+  toAdsBtn.addEventListener("click", goAds);
+
+  // Back button on commercials page
+  backBtn.addEventListener("click", goHome);
+
+  // Optional: Escape to go back
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") {
-      if (location.hash === "#ads") history.back();
-      else slider.classList.remove("is-ads");
-    }
+    if (e.key === "Escape") goHome();
   });
 
-  // Respond to browser back/forward and mobile swipe-back gestures
+  // Handle browser back/forward
   window.addEventListener("popstate", () => {
-    if (location.hash === "#ads") {
-      slider.classList.add("is-ads");
-      tryRenderAds();
-    } else {
-      slider.classList.remove("is-ads");
-    }
+    if (location.hash === "#ads") goAds();
+    else goHome();
   });
 
-  // If user loads the page directly with #ads, show commercials page
+  // Deep link support
   if (location.hash === "#ads") {
-    slider.classList.add("is-ads");
+    // jump immediately on load
+    adsSection?.scrollIntoView({ behavior: "auto", block: "start" });
     tryRenderAds();
   }
 
