@@ -595,27 +595,28 @@ function setProgress(value) {
   });
 
   shareBtn?.addEventListener("click", async () => {
-    const url = String(location.href).split("#")[0];
+  const url = String(location.href).split("#")[0];
 
+  if (navigator.share) {
     try {
-      if (navigator.share) {
-        await navigator.share({ url });
-        return;
-      }
-    } catch {
-      // fall through to clipboard
+      await navigator.share({ url });
+      return; // ✅ shared successfully
+    } catch (err) {
+      // ✅ user canceled the share sheet → do nothing
+      if (err && err.name === "AbortError") return;
+      // otherwise, fall through to clipboard
     }
+  }
 
-    try {
-      await navigator.clipboard.writeText(url);
-      const prev = shareBtn.textContent;
-      shareBtn.textContent = "Boss link copied!";
-      setTimeout(() => { shareBtn.textContent = prev; }, 1000);
-    } catch {
-      // last resort
-      window.prompt("Copy this link:", url);
-    }
-  });
+  try {
+    await navigator.clipboard.writeText(url);
+    const prev = shareBtn.textContent;
+    shareBtn.textContent = "Boss link copied!";
+    setTimeout(() => { shareBtn.textContent = prev; }, 1000);
+  } catch {
+    window.prompt("Copy this link:", url);
+  }
+});
 
 
   let timer = null;
