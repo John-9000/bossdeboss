@@ -21,6 +21,160 @@ function tierFor(level) {
   return { title: "NOVICE BOSS", colorVar: "--gray", icon: "sparkles" };
 }
 
+
+const FUNNY_TEXTS = {
+  novice: [
+    "Every boss starts somewhere.",
+    "Still reading the boss manual.",
+    "Coffee break boss energy.",
+    "Boss in training mode.",
+    "Keyboard louder than confidence.",
+    "Assistant to the regional boss.",
+    "Wi‑Fi stronger than power.",
+    "Still unlocking boss skills.",
+    "Boss vibes buffering…",
+    "Learning the secret handshake.",
+    "Boss shoes still shiny.",
+    "Power nap certified.",
+    "Boss alarm snoozed.",
+    "Spreadsheet warrior.",
+    "Boss aura loading…",
+    "Motivation pending approval.",
+    "Office chair CEO.",
+    "Almost intimidating.",
+    "Boss energy on airplane mode.",
+    "Practicing the stare.",
+    "Budget boss.",
+    "Boss level: tutorial.",
+    "Confidence warming up.",
+    "Boss instincts downloading…",
+    "Legend pending.",
+    "Small boss, big dreams.",
+    "Not bossy—just ambitious.",
+    "CEO of “maybe later.”",
+  ],
+  apprentice: [
+    "Boss with potential.",
+    "Confidence upgraded.",
+    "People starting to notice.",
+    "Boss energy rising.",
+    "Office legend rumors.",
+    "Still humble, mostly.",
+    "Boss handshake unlocked.",
+    "Voice carries further.",
+    "Meetings fear you.",
+    "Keyboard respected.",
+    "Coffee obeys you.",
+    "Promotion aura detected.",
+    "Boss mode warming.",
+    "Authority increasing.",
+    "Decisions slightly faster.",
+    "Boss instincts sharp.",
+    "Desk presence strong.",
+    "Leadership beta.",
+    "Power stance improving.",
+    "Boss shoes broken in.",
+    "Respect installing…",
+    "Boss playlist curated.",
+    "Confidence compiling…",
+    "Boss brain online.",
+    "Almost legendary.",
+    "You’re not late—you’re dramatic.",
+    "Rising like fresh toast.",
+    "CEO of “good enough.”",
+  ],
+  rising: [
+    "People listen now.",
+    "Boss energy undeniable.",
+    "Meetings end faster.",
+    "Decisions land hard.",
+    "Boss presence felt.",
+    "Power suit energy.",
+    "Confidence at scale.",
+    "Voice carries weight.",
+    "Room temperature changes.",
+    "Boss aura stable.",
+    "Respect delivered.",
+    "Authority unlocked.",
+    "Boss instincts sharp.",
+    "Momentum building.",
+    "Eyes follow you.",
+    "Keyboard obeys.",
+    "Boss energy certified.",
+    "Leadership activated.",
+    "No nonsense detected.",
+    "Commanding presence.",
+    "Boss level rising.",
+    "Strategy installed.",
+    "Confidence overflow.",
+    "Boss energy flex.",
+    "Legend forming.",
+    "Walking KPI.",
+    "You negotiate with gravity.",
+    "Meetings request *you*.",
+  ],
+  elite: [
+    "Room goes quiet.",
+    "Boss energy intimidating.",
+    "Decisions shape reality.",
+    "Authority unquestioned.",
+    "Power walks louder.",
+    "Boss aura maxed.",
+    "Respect guaranteed.",
+    "Leadership absolute.",
+    "Meetings obey.",
+    "Confidence unstoppable.",
+    "Boss instincts elite.",
+    "Commanding silence.",
+    "Strategy flawless.",
+    "Boss presence heavy.",
+    "Eyes locked.",
+    "Influence detected.",
+    "Boss energy peaks.",
+    "Power undeniable.",
+    "Leadership refined.",
+    "Elite mindset active.",
+    "Boss moves decisive.",
+    "Authority mastered.",
+    "Confidence lethal.",
+    "Boss legend near.",
+    "Feared politely.",
+    "Your calendar fears you.",
+    "You don’t chase goals—goals chase you.",
+    "Handshake is a contract.",
+  ],
+  legendary: [
+    "Boss mythology confirmed.",
+    "Legend walks among us.",
+    "Reality bends slightly.",
+    "Boss energy absolute.",
+    "Power unmatched.",
+    "History remembers this.",
+    "Authority unquestionable.",
+    "Boss aura eternal.",
+    "Legends whisper.",
+    "Respect infinite.",
+    "Power level capped.",
+    "Boss final form.",
+    "Legacy activated.",
+    "Influence timeless.",
+    "Boss energy god-tier.",
+    "Legend certified.",
+    "Myth unlocked.",
+    "Boss presence iconic.",
+    "Power perfected.",
+    "History rewritten.",
+    "Boss energy complete.",
+    "Ultimate authority.",
+    "Legend status permanent.",
+    "Reality approves.",
+    "Boss achieved.",
+    "Your name is a strategy.",
+    "Even luck takes notes.",
+    "The room pays rent to you.",
+  ],
+};
+
 function setColor(el, cssVarName) {
   if (!el) return;
   const color = getComputedStyle(document.documentElement).getPropertyValue(cssVarName).trim();
@@ -33,6 +187,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // -------------------------
   const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
   const STORAGE_KEY = "boss_last_check_ms";
+  const RESULT_KEY = "boss_last_result"; // JSON: { level }
+  const HISTORY_KEY = "boss_history_v1"; // JSON array: [{ level, ts }], newest first (max 7)
+
 
   function getLastCheck() {
     const v = localStorage.getItem(STORAGE_KEY);
@@ -64,11 +221,29 @@ document.addEventListener("DOMContentLoaded", () => {
 
   let adsenseLoaded = false;
 
+  function getCookie(name) {
+    try {
+      const m = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/[.$?*|{}()[\]\\/\+^]/g, '\$&') + '=([^;]*)'));
+      return m ? decodeURIComponent(m[1]) : null;
+    } catch {
+      return null;
+    }
+  }
+  function setCookie(name, value, days) {
+    try {
+      const maxAge = days ? `; max-age=${days * 24 * 60 * 60}` : "";
+      document.cookie = `${name}=${encodeURIComponent(value)}${maxAge}; path=/; samesite=lax`;
+    } catch {}
+  }
+
   function getConsent() {
-    return localStorage.getItem(CONSENT_KEY);
+    // Prefer localStorage, but fall back to a cookie so the choice persists across pages
+    // even in restrictive environments.
+    return localStorage.getItem(CONSENT_KEY) || getCookie(CONSENT_KEY);
   }
   function setConsent(v) {
     localStorage.setItem(CONSENT_KEY, v);
+    setCookie(CONSENT_KEY, v, 365);
   }
   function showCookieBanner(show) {
     if (!cookieBanner) return;
@@ -139,6 +314,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const resultTier = document.getElementById("resultTier");
   const resultIcon = document.getElementById("resultIcon");
   const bossImage = document.getElementById("bossImage");
+  const progressBlock = document.getElementById("progressBlock");
+  const progressValue = document.getElementById("progressValue");
+  const progressFill = document.getElementById("progressFill");
   const btnIcon = document.getElementById("btnIcon");
   const btnText = document.getElementById("btnText");
 
@@ -178,8 +356,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function setAnimating(isAnimating) {
     if (isAnimating) checkBtn.disabled = true;
 
-    placeholder?.classList.toggle("pulse", isAnimating);
-    if (placeholderText) placeholderText.textContent = isAnimating ? "Calculating..." : "Press the button to check";
+    // No "Calculating..." message; we show a progress bar instead.
+    placeholder?.classList.toggle("pulse", false);
 
     if (btnText) btnText.textContent = isAnimating ? "Checking..." : "Check My Boss Level";
 
@@ -199,12 +377,12 @@ document.addEventListener("DOMContentLoaded", () => {
     result?.classList.add("hidden");
   }
 
-  function showResult(level, isUltimate) {
-    const showImg = !!isUltimate || level === 100;
+  function showResult(level) {
+    const showImg = level === 100;
 
     if (bossImage) {
       if (showImg) {
-        bossImage.src = isUltimate ? "./images/ultimate-boss.png" : "./images/legendary-100.png";
+        bossImage.src = "./images/legendary-100.png";
         bossImage.classList.remove("hidden");
         result?.classList.add("hasImage");
       } else {
@@ -235,10 +413,210 @@ document.addEventListener("DOMContentLoaded", () => {
     result?.classList.remove("hidden");
   }
 
+    function updateLiveResult(level) {
+    const info = tierFor(level);
+
+    // Always keep images hidden while animating (show at the very end only)
+    if (bossImage) {
+      bossImage.removeAttribute("src");
+      bossImage.classList.add("hidden");
+    }
+    result?.classList.remove("hasImage");
+
+    if (resultNumber) resultNumber.textContent = String(level);
+    if (resultTier) resultTier.textContent = info.title;
+
+    setColor(resultNumber, info.colorVar);
+    setColor(resultTier, info.colorVar);
+
+    if (resultIcon) {
+      resultIcon.innerHTML = ICONS[info.icon] || ICONS.crown;
+      const svg = resultIcon.querySelector("svg");
+      if (svg) {
+        svg.classList.add("icon");
+        setColor(svg, info.colorVar);
+      }
+    }
+  }
+
+function setProgress(value) {
+    if (!progressBlock || !progressValue || !progressFill) return;
+
+    progressBlock.classList.remove("hidden");
+
+    const clamped = Math.max(0, Math.min(100, Math.round(value)));
+    progressValue.textContent = String(clamped);
+
+    const info = tierFor(clamped);
+    const color = getComputedStyle(document.documentElement).getPropertyValue(info.colorVar).trim() || "";
+    progressValue.style.color = color;
+    progressFill.style.background = color || "";
+    progressFill.style.width = `${clamped}%`;
+  }
+
+  function hideProgress() {
+    progressBlock?.classList.add("hidden");
+  }
+
+  function saveLastResult(level) {
+    try {
+      localStorage.setItem(RESULT_KEY, JSON.stringify({ level }));
+      sessionStorage.setItem(RESULT_KEY, JSON.stringify({ level }));
+    } catch {}
+  }
+
+  function restoreLastResult() {
+    try {
+      const raw = localStorage.getItem(RESULT_KEY) || sessionStorage.getItem(RESULT_KEY);
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      const level = Number(parsed?.level);
+      if (!Number.isFinite(level) || level < 1 || level > 100) return false;
+
+      showResult(level);
+      setProgress(level); // keep progress bar + number under the result
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem(HISTORY_KEY);
+      const arr = raw ? JSON.parse(raw) : [];
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function saveHistory(level) {
+    try {
+      const ts = Date.now();
+      const arr = loadHistory();
+
+      // If the newest entry is identical and very recent, don't duplicate
+      const newest = arr[0];
+      if (newest && newest.level === level && typeof newest.ts === "number" && (ts - newest.ts) < 1500) {
+        return;
+      }
+
+      const next = [{ level, ts }, ...arr].slice(0, 7);
+      localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+    } catch {}
+  }
+
+  function formatWhen(ts) {
+    const now = Date.now();
+    const diffMs = now - ts;
+    const dayMs = 24 * 60 * 60 * 1000;
+    const days = Math.floor(diffMs / dayMs);
+
+    if (days <= 0) return "Today";
+    if (days === 1) return "Yesterday";
+    if (days < 7) return `${days} days ago`;
+
+    try {
+      return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(ts));
+    } catch {
+      const d = new Date(ts);
+      return d.toLocaleDateString();
+    }
+  }
+
+  function shortTierLabel(level) {
+    const t = tierFor(level).title || "";
+    return t.replace(/\s*BOSS\s*$/i, "");
+  }
+
+  function renderHistory() {
+    const list = document.getElementById("historyList");
+    if (!list) return;
+
+    const items = loadHistory();
+    if (!items.length) {
+      list.innerHTML = '<div class="historyEmpty">No history yet.\n<br/>Check your Boss Level to create entries.</div>';
+      return;
+    }
+
+    list.innerHTML = items.map((it) => {
+      const lvl = Math.max(1, Math.min(100, Number(it.level) || 1));
+      const info = tierFor(lvl);
+      const label = shortTierLabel(lvl);
+      const when = formatWhen(Number(it.ts) || Date.now());
+      const color = getComputedStyle(document.documentElement).getPropertyValue(info.colorVar).trim() || "";
+
+      const safeLabel = label.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      const safeWhen = when.replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+      return `
+        <div class="historyRow">
+          <div class="historyLabel" style="color:${color}">${safeLabel}</div>
+          <div class="historyBar" aria-label="Result ${lvl}">
+            <div class="historyBarFill" style="width:${lvl}%; background:${color}"></div>
+            <div class="historyBarText">${lvl}</div>
+          </div>
+          <div class="historyWhen" style="color:${color}">${safeWhen}</div>
+        </div>
+      `;
+    }).join("");
+  }
+
   // initial UI
+
   if (btnIcon) btnIcon.innerHTML = ICONS.target;
   updateCooldownUI();
   startCooldownTicker();
+
+  // Restore last shown result/progress (e.g., after visiting Commercials and coming back)
+  restoreLastResult();
+
+  // Top actions (Share / Boss History)
+  const shareBtn = document.getElementById("shareBtn");
+  const historyBtn = document.getElementById("historyBtn");
+  const historyModal = document.getElementById("historyModal");
+  const historyClose = document.getElementById("historyClose");
+
+  function openHistory() {
+    if (!historyModal) return;
+    renderHistory();
+    historyModal.classList.remove("hidden");
+  }
+  function closeHistory() {
+    historyModal?.classList.add("hidden");
+  }
+
+  historyBtn?.addEventListener("click", openHistory);
+  historyClose?.addEventListener("click", closeHistory);
+  historyModal?.addEventListener("click", (e) => {
+    if (e.target === historyModal) closeHistory();
+  });
+
+  shareBtn?.addEventListener("click", async () => {
+    const url = String(location.href).split("#")[0];
+
+    try {
+      if (navigator.share) {
+        await navigator.share({ url });
+        return;
+      }
+    } catch {
+      // fall through to clipboard
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+      const prev = shareBtn.textContent;
+      shareBtn.textContent = "Boss link copied!";
+      setTimeout(() => { shareBtn.textContent = prev; }, 1000);
+    } catch {
+      // last resort
+      window.prompt("Copy this link:", url);
+    }
+  });
+
 
   let timer = null;
 
@@ -253,6 +631,9 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    // Decide the final result upfront so the progress can count toward it
+    const level = Math.floor(Math.random() * 100) + 1;
+
     // Lock immediately to prevent spam
     setLastCheck(now);
     updateCooldownUI();
@@ -264,18 +645,59 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     setAnimating(true);
-    showPlaceholder();
 
-    timer = setTimeout(() => {
-      // Hidden 1/10000 chance for Ultimate Boss
-      const isUltimate = Math.floor(Math.random() * 10000) === 0;
-      const level = isUltimate ? 100 : Math.floor(Math.random() * 100) + 1;
+    // Use the result rectangle to display the progress bar (no text message)
+    placeholder?.classList.add("hidden");
+    result?.classList.remove("hidden");
+    result?.classList.remove("hasImage");
+    if (bossImage) {
+      bossImage.removeAttribute("src");
+      bossImage.classList.add("hidden");
+    }
 
-      showResult(level, isUltimate);
+    setProgress(0);
+    updateLiveResult(0);
+
+    const duration = 720; // ~1.4 seconds
+    const start = performance.now();
+
+    function tick(t) {
+      const p = Math.min(1, (t - start) / duration);
+      // Ease-out: fast at start, slower near the end
+      const eased = 1 - Math.pow(1 - p, 1.3);
+      const current = Math.floor(level * eased);
+      setProgress(current);
+      updateLiveResult(current);
+
+      if (p < 1) {
+        requestAnimationFrame(tick);
+        return;
+      }
+
+      // Finish
+      setProgress(level); // ensure exact
+
+      showResult(level);
+      saveLastResult(level);
+      saveHistory(level);
+      const progressEl = document.getElementById("progressBlock");
+      if (progressEl) {
+        progressEl.querySelectorAll(".bossFunny").forEach((n) => n.remove());
+        const funny = document.createElement("div");
+        funny.className = "bossFunny";
+        const tierKey = tierFor(level).title.replace(/\s*BOSS/i, "").toLowerCase();
+        const arr = FUNNY_TEXTS[tierKey] || [];
+        funny.textContent = arr[Math.floor(Math.random() * arr.length)] || "";
+        progressEl.appendChild(funny);
+      }
+
+
       setAnimating(false);
       timer = null;
 
       updateCooldownUI();
-    }, 600);
+    }
+
+    requestAnimationFrame(tick);
   });
 });
