@@ -233,7 +233,7 @@ document.addEventListener("DOMContentLoaded", () => {
     try {
       const maxAge = days ? `; max-age=${days * 24 * 60 * 60}` : "";
       document.cookie = `${name}=${encodeURIComponent(value)}${maxAge}; path=/; samesite=lax`;
-    } catch {}
+    } catch { }
   }
 
   function getConsent() {
@@ -378,21 +378,15 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function showResult(level) {
-    const showImg = level === 100;
-
+    // No special cases: score 100 is treated like any other Legendary score.
+    // Never load or show boss images.
     if (bossImage) {
-      if (showImg) {
-        bossImage.src = "./images/legendary-100.png";
-        bossImage.classList.remove("hidden");
-        result?.classList.add("hasImage");
-      } else {
-        bossImage.removeAttribute("src");
-        bossImage.classList.add("hidden");
-        result?.classList.remove("hasImage");
-      }
+      bossImage.removeAttribute("src");
+      bossImage.classList.add("hidden");
     }
+    result?.classList.remove("hasImage");
 
-    const info = tierFor(level);
+const info = tierFor(level);
 
     if (resultNumber) resultNumber.textContent = String(level);
     if (resultTier) resultTier.textContent = info.title;
@@ -413,7 +407,7 @@ document.addEventListener("DOMContentLoaded", () => {
     result?.classList.remove("hidden");
   }
 
-    function updateLiveResult(level) {
+  function updateLiveResult(level) {
     const info = tierFor(level);
 
     // Always keep images hidden while animating (show at the very end only)
@@ -439,7 +433,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-function setProgress(value) {
+  function setProgress(value) {
     if (!progressBlock || !progressValue || !progressFill) return;
 
     progressBlock.classList.remove("hidden");
@@ -458,11 +452,23 @@ function setProgress(value) {
     progressBlock?.classList.add("hidden");
   }
 
-  function saveLastResult(level) {
+  function renderFunny(text) {
+    if (!progressBlock) return;
+
+    progressBlock.querySelectorAll(".bossFunny").forEach((n) => n.remove());
+    if (!text) return;
+
+    const funny = document.createElement("div");
+    funny.className = "bossFunny";
+    funny.textContent = text;
+    progressBlock.appendChild(funny);
+  }
+
+  function saveLastResult(level, funnyText) {
     try {
-      localStorage.setItem(RESULT_KEY, JSON.stringify({ level }));
-      sessionStorage.setItem(RESULT_KEY, JSON.stringify({ level }));
-    } catch {}
+      localStorage.setItem(RESULT_KEY, JSON.stringify({ level, funnyText }));
+      sessionStorage.setItem(RESULT_KEY, JSON.stringify({ level, funnyText }));
+    } catch { }
   }
 
   function restoreLastResult() {
@@ -475,7 +481,9 @@ function setProgress(value) {
 
       showResult(level);
       setProgress(level); // keep progress bar + number under the result
+      renderFunny(parsed?.funnyText || "");
       return true;
+
     } catch {
       return false;
     }
@@ -505,7 +513,7 @@ function setProgress(value) {
 
       const next = [{ level, ts }, ...arr].slice(0, 7);
       localStorage.setItem(HISTORY_KEY, JSON.stringify(next));
-    } catch {}
+    } catch { }
   }
 
   function formatWhen(ts) {
@@ -594,37 +602,37 @@ function setProgress(value) {
     if (e.target === historyModal) closeHistory();
   });
 
- shareBtn?.addEventListener("click", async () => {
-  const url = String(location.href).split("#")[0];
+  shareBtn?.addEventListener("click", async () => {
+    const url = String(location.href).split("#")[0];
 
-  // Mobile share sheet (if available)
-  if (navigator.share) {
-    try {
-      await navigator.share({ url });
-      return; // shared successfully
-    } catch (err) {
-      // user canceled -> do nothing (no copy message)
-      if (err && err.name === "AbortError") return;
-      // otherwise fall through to copy
+    // Mobile share sheet (if available)
+    if (navigator.share) {
+      try {
+        await navigator.share({ url });
+        return; // shared successfully
+      } catch (err) {
+        // user canceled -> do nothing (no copy message)
+        if (err && err.name === "AbortError") return;
+        // otherwise fall through to copy
+      }
     }
-  }
 
-  // Desktop / fallback: copy link
-  try {
-    await navigator.clipboard.writeText(url);
+    // Desktop / fallback: copy link
+    try {
+      await navigator.clipboard.writeText(url);
 
-    shareBtn.textContent = "Boss link copied!";
-    shareBtn.disabled = true;
+      shareBtn.textContent = "Boss link copied!";
+      shareBtn.disabled = true;
 
-    // always restore back to "Share" (never rely on prev)
-    setTimeout(() => {
-      shareBtn.textContent = "Share";
-      shareBtn.disabled = false;
-    }, 1000);
-  } catch {
-    window.prompt("Copy this link:", url);
-  }
-});
+      // always restore back to "Share" (never rely on prev)
+      setTimeout(() => {
+        shareBtn.textContent = "Share";
+        shareBtn.disabled = false;
+      }, 1000);
+    } catch {
+      window.prompt("Copy this link:", url);
+    }
+  });
 
 
 
@@ -690,16 +698,16 @@ function setProgress(value) {
       showResult(level);
       saveLastResult(level);
       saveHistory(level);
-      const progressEl = document.getElementById("progressBlock");
-      if (progressEl) {
-        progressEl.querySelectorAll(".bossFunny").forEach((n) => n.remove());
-        const funny = document.createElement("div");
-        funny.className = "bossFunny";
-        const tierKey = tierFor(level).title.replace(/\s*BOSS/i, "").toLowerCase();
-        const arr = FUNNY_TEXTS[tierKey] || [];
-        funny.textContent = (level === 100) ? "You didn’t roll this. You earned it." : (arr[Math.floor(Math.random() * arr.length)] || "");
-        progressEl.appendChild(funny);
-      }
+      const tierKey = tierFor(level).title.replace(/\s*BOSS/i, "").toLowerCase();
+      const arr = FUNNY_TEXTS[tierKey] || [];
+      const funnyText = (arr[Math.floor(Math.random() * arr.length)] || "");
+
+      renderFunny(funnyText);
+
+      showResult(level);
+      saveLastResult(level, funnyText);
+      saveHistory(level);
+
 
 
       setAnimating(false);
