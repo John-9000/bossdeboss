@@ -213,7 +213,7 @@ body{
 .tierGrid{
   display:flex;
   flex-wrap:nowrap;           /* default: single row */
-  gap: 12px;
+  gap: 6px;
   justify-content:center;
   align-items:stretch;
 }
@@ -227,7 +227,7 @@ body{
 .tierBox{
   flex: 1 1 0;
   min-width: 64px;
-  max-width: 140px;
+  max-width: 130px;
   padding: 10px 8px;
   border-radius: 12px;
   background: rgba(15,23,42,0.5);
@@ -467,9 +467,9 @@ body{
 
 
 /* Responsive tier boxes */
-.tierBox{flex: 1 1 140px; max-width: 190px;}
+.tierBox{flex: 1 1 0; max-width: 140px;}
 @media (max-width: 360px){
-  .tierBox{flex-basis: 120px; max-width: 170px;}
+  .tierBox{max-width: 120px;}
 }
 
 a.checkBtn{ text-decoration:none; }
@@ -539,6 +539,11 @@ a.checkBtn{ text-decoration:none; }
   font-size: 16px;
   letter-spacing: .08em;
   color: rgba(226,232,240,0.92);
+}
+.historySub{
+  margin: 2px 0 10px;
+  color: rgba(148,163,184,0.92);
+  font-size: 12px;
 }
 .historyClose{
   width: 36px;

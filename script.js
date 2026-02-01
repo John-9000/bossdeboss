@@ -687,7 +687,7 @@ function setProgress(value) {
         funny.className = "bossFunny";
         const tierKey = tierFor(level).title.replace(/\s*BOSS/i, "").toLowerCase();
         const arr = FUNNY_TEXTS[tierKey] || [];
-        funny.textContent = arr[Math.floor(Math.random() * arr.length)] || "";
+        funny.textContent = (level === 100) ? "You didn’t roll this. You earned it." : (arr[Math.floor(Math.random() * arr.length)] || "");
         progressEl.appendChild(funny);
       }
 
