@@ -594,29 +594,38 @@ function setProgress(value) {
     if (e.target === historyModal) closeHistory();
   });
 
-  shareBtn?.addEventListener("click", async () => {
+ shareBtn?.addEventListener("click", async () => {
   const url = String(location.href).split("#")[0];
 
+  // Mobile share sheet (if available)
   if (navigator.share) {
     try {
       await navigator.share({ url });
-      return; // ✅ shared successfully
+      return; // shared successfully
     } catch (err) {
-      // ✅ user canceled the share sheet → do nothing
+      // user canceled -> do nothing (no copy message)
       if (err && err.name === "AbortError") return;
-      // otherwise, fall through to clipboard
+      // otherwise fall through to copy
     }
   }
 
+  // Desktop / fallback: copy link
   try {
     await navigator.clipboard.writeText(url);
-    const prev = shareBtn.textContent;
+
     shareBtn.textContent = "Boss link copied!";
-    setTimeout(() => { shareBtn.textContent = prev; }, 1000);
+    shareBtn.disabled = true;
+
+    // always restore back to "Share" (never rely on prev)
+    setTimeout(() => {
+      shareBtn.textContent = "Share";
+      shareBtn.disabled = false;
+    }, 1000);
   } catch {
     window.prompt("Copy this link:", url);
   }
 });
+
 
 
   let timer = null;
