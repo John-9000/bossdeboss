@@ -182,6 +182,8 @@ function setColor(el, cssVarName) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Canonical public URL for sharing (avoid sharing local file paths, hashes, etc.)
+  const SHARE_BASE_URL = "https://www.bossdeboss.co.uk/";
   // -------------------------
   // 1-hour cooldown (localStorage)
   // -------------------------
@@ -591,6 +593,25 @@ const info = tierFor(level);
   // Restore last shown result/progress (e.g., after visiting Commercials and coming back)
   restoreLastResult();
 
+  // If the page is opened with a share link like ?score=85,
+  // display that score immediately (without triggering cooldown).
+  (function restoreFromQueryScore() {
+    try {
+      const u = new URL(window.location.href);
+      const raw = u.searchParams.get("score");
+      if (!raw) return;
+      const lvl = Number(raw);
+      if (!Number.isFinite(lvl) || lvl < 1 || lvl > 100) return;
+
+      showResult(Math.round(lvl));
+      setProgress(Math.round(lvl));
+      // No funny text for shared links (keeps it clean and consistent)
+      renderFunny("");
+    } catch {
+      // ignore
+    }
+  })();
+
   // Top actions (Share / Boss History)
   const shareBtn = document.getElementById("shareBtn");
   const historyBtn = document.getElementById("historyBtn");
@@ -613,12 +634,117 @@ const info = tierFor(level);
   });
 
   shareBtn?.addEventListener("click", async () => {
-    const url = String(location.href).split("#")[0];
+    // Before roll (no visible result): share the home link only.
+    // After roll (result visible): share text + a result link (?score=XX).
+    const resultVisible = !!(result && !result.classList.contains("hidden")) && !!(placeholder && placeholder.classList.contains("hidden"));
+    const maybeLevel = Number(resultNumber?.textContent || "");
+    const hasLevel = resultVisible && Number.isFinite(maybeLevel) && maybeLevel >= 1 && maybeLevel <= 100;
+
+    let shareUrl = SHARE_BASE_URL;
+    let shareText = "";
+
+    if (hasLevel) {
+      const level = Math.round(maybeLevel);
+      const info = tierFor(level);
+
+      const emojiByIcon = {
+        trophy: "🏆",
+        crown: "👑",
+        zap: "⚡",
+        target: "🎯",
+        sparkles: "✨",
+        megaphone: "📣",
+      };
+      const emoji = emojiByIcon[info.icon] || "👑";
+
+      shareUrl = `${SHARE_BASE_URL}?score=${encodeURIComponent(String(level))}`;
+      shareText = `🔥 I rolled ${level} – ${info.title} ${emoji}\nCheck your boss level 👉 ${SHARE_BASE_URL}`;
+    }
+
+    async function buildShareCardFile(level) {
+      // Create a square "result card" PNG (like the on-screen result)
+      const info = tierFor(level);
+      const color = getComputedStyle(document.documentElement).getPropertyValue(info.colorVar).trim() || "#ffffff";
+
+      const canvas = document.createElement("canvas");
+      const size = 720;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+
+      // Background gradient similar to the site
+      const g = ctx.createLinearGradient(0, 0, size, size);
+      g.addColorStop(0, "#0f172a");
+      g.addColorStop(0.5, "#1f2937");
+      g.addColorStop(1, "#0f172a");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, size, size);
+
+      // Typography
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillStyle = color;
+
+      // Big score
+      ctx.font = "900 220px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+      ctx.fillText(String(level), size / 2, 190);
+
+      // Tier
+      ctx.font = "900 64px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+      ctx.fillText(info.title, size / 2, 330);
+
+      // Icon (SVG -> Image)
+      const rawSvg = ICONS[info.icon] || ICONS.crown;
+      const svgColored = String(rawSvg)
+        .replace(/stroke=\"currentColor\"/g, `stroke=\"${color}\"`)
+        .replace(/width=\"\d+\"/g, "")
+        .replace(/height=\"\d+\"/g, "");
+
+      const svg = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>${svgColored}`;
+      const img = new Image();
+      img.decoding = "async";
+      img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+
+      await new Promise((resolve) => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      });
+
+      const iconSize = 160;
+      ctx.drawImage(img, (size - iconSize) / 2, 400, iconSize, iconSize);
+
+      // Small score at bottom
+      ctx.font = "900 120px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
+      ctx.fillText(String(level), size / 2, 640);
+
+      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
+      if (!blob) return null;
+      return new File([blob], `boss-score-${level}.png`, { type: "image/png" });
+    }
 
     // Mobile share sheet (if available)
     if (navigator.share) {
       try {
-        await navigator.share({ url });
+        // If we have a level, try sharing an image card + text + link (Option A)
+        if (hasLevel && navigator.canShare) {
+          const file = await buildShareCardFile(Math.round(maybeLevel));
+          if (file && navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              title: "Boss Level Checker",
+              text: shareText,
+              url: shareUrl,
+              files: [file],
+            });
+            return;
+          }
+        }
+
+        // Otherwise fall back to sharing text/link
+        const payload = hasLevel
+          ? { title: "Boss Level Checker", text: shareText, url: shareUrl }
+          : { title: "Boss Level Checker", url: shareUrl };
+        await navigator.share(payload);
         return; // shared successfully
       } catch (err) {
         // user canceled -> do nothing (no copy message)
@@ -627,20 +753,20 @@ const info = tierFor(level);
       }
     }
 
-    // Desktop / fallback: copy link
+    // Desktop / fallback: copy text+link (or just the link before roll)
+    const toCopy = hasLevel ? `${shareText}\n${shareUrl}` : shareUrl;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(toCopy);
 
-      shareBtn.textContent = "Boss link copied!";
+      shareBtn.textContent = hasLevel ? "Copied score!" : "Link copied!";
       shareBtn.disabled = true;
 
-      // always restore back to "Share" (never rely on prev)
       setTimeout(() => {
         shareBtn.textContent = "Share";
         shareBtn.disabled = false;
       }, 1000);
     } catch {
-      window.prompt("Copy this link:", url);
+      window.prompt("Copy this:", toCopy);
     }
   });
 
