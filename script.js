@@ -661,6 +661,10 @@ const info = tierFor(level);
       shareText = `🔥 I rolled ${level} – ${info.title} ${emoji}\nCheck your boss level 👉 ${SHARE_BASE_URL}`;
     }
 
+    // When sharing an *image file*, many apps (notably WhatsApp on Android) may ignore the file
+    // if a separate `url` field is provided. So for file shares we embed the link in the text.
+    const shareTextWithLink = hasLevel ? `${shareText}\n${shareUrl}` : shareText;
+
     async function buildShareCardFile(level) {
       // Create a square "result card" PNG (like the on-screen result)
       const info = tierFor(level);
@@ -718,7 +722,18 @@ const info = tierFor(level);
       ctx.font = "900 120px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
       ctx.fillText(String(level), size / 2, 640);
 
-      const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
+      // Some mobile browsers can return null from toBlob; fall back to dataURL.
+      let blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
+      if (!blob) {
+        try {
+          const dataUrl = canvas.toDataURL("image/png");
+          const res = await fetch(dataUrl);
+          blob = await res.blob();
+        } catch {
+          blob = null;
+        }
+      }
+
       if (!blob) return null;
       return new File([blob], `boss-score-${level}.png`, { type: "image/png" });
     }
@@ -726,14 +741,18 @@ const info = tierFor(level);
     // Mobile share sheet (if available)
     if (navigator.share) {
       try {
-        // If we have a level, try sharing an image card + text + link (Option A)
-        if (hasLevel && navigator.canShare) {
+        // If we have a level, try sharing an image card (Option A)
+        if (hasLevel) {
           const file = await buildShareCardFile(Math.round(maybeLevel));
-          if (file && navigator.canShare({ files: [file] })) {
+
+          // Prefer sharing the image file. Do NOT pass a separate `url` field here.
+          // We embed the link into the text to keep WhatsApp and similar apps attaching the image.
+          // Some browsers incorrectly report `navigator.canShare({files}) === false` even though file share works,
+          // so we *always* attempt the file share first and fall back if it throws.
+          if (file) {
             await navigator.share({
               title: "Boss Level Checker",
-              text: shareText,
-              url: shareUrl,
+              text: shareTextWithLink,
               files: [file],
             });
             return;
@@ -742,7 +761,7 @@ const info = tierFor(level);
 
         // Otherwise fall back to sharing text/link
         const payload = hasLevel
-          ? { title: "Boss Level Checker", text: shareText, url: shareUrl }
+          ? { title: "Boss Level Checker", text: shareTextWithLink }
           : { title: "Boss Level Checker", url: shareUrl };
         await navigator.share(payload);
         return; // shared successfully
@@ -754,7 +773,7 @@ const info = tierFor(level);
     }
 
     // Desktop / fallback: copy text+link (or just the link before roll)
-    const toCopy = hasLevel ? `${shareText}\n${shareUrl}` : shareUrl;
+    const toCopy = hasLevel ? `${shareTextWithLink}` : shareUrl;
     try {
       await navigator.clipboard.writeText(toCopy);
 
