@@ -665,8 +665,9 @@ const info = tierFor(level);
     // if a separate `url` field is provided. So for file shares we embed the link in the text.
     const shareTextWithLink = hasLevel ? `${shareText}\n${shareUrl}` : shareText;
 
-    async function buildShareCardFile(level) {
-      // Create a square "result card" PNG (like the on-screen result)
+    async function buildShareCardFile(level, mimeType) {
+      // Create a square "result card" image with: score, tier, icon, score.
+      // We try JPEG first because some share targets (notably WhatsApp) are more reliable with it.
       const info = tierFor(level);
       const color = getComputedStyle(document.documentElement).getPropertyValue(info.colorVar).trim() || "#ffffff";
 
@@ -722,11 +723,13 @@ const info = tierFor(level);
       ctx.font = "900 120px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
       ctx.fillText(String(level), size / 2, 640);
 
+      const mt = mimeType || "image/jpeg";
+
       // Some mobile browsers can return null from toBlob; fall back to dataURL.
-      let blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png", 0.92));
+      let blob = await new Promise((resolve) => canvas.toBlob(resolve, mt, 0.92));
       if (!blob) {
         try {
-          const dataUrl = canvas.toDataURL("image/png");
+          const dataUrl = canvas.toDataURL(mt);
           const res = await fetch(dataUrl);
           blob = await res.blob();
         } catch {
@@ -735,7 +738,8 @@ const info = tierFor(level);
       }
 
       if (!blob) return null;
-      return new File([blob], `boss-score-${level}.png`, { type: "image/png" });
+      const ext = mt === "image/png" ? "png" : "jpg";
+      return new File([blob], `boss-score-${level}.${ext}`, { type: mt });
     }
 
     // Mobile share sheet (if available)
@@ -743,19 +747,27 @@ const info = tierFor(level);
       try {
         // If we have a level, try sharing an image card (Option A)
         if (hasLevel) {
-          const file = await buildShareCardFile(Math.round(maybeLevel));
+          const lvl = Math.round(maybeLevel);
+          const fileJpg = await buildShareCardFile(lvl, "image/jpeg");
+          const filePng = fileJpg ? null : await buildShareCardFile(lvl, "image/png");
+          const file = fileJpg || filePng;
 
-          // Prefer sharing the image file. Do NOT pass a separate `url` field here.
-          // We embed the link into the text to keep WhatsApp and similar apps attaching the image.
-          // Some browsers incorrectly report `navigator.canShare({files}) === false` even though file share works,
-          // so we *always* attempt the file share first and fall back if it throws.
+          // Prefer sharing the image file ONLY (no url/text), because WhatsApp often drops the image
+          // when a URL is present. User requested image-only sharing.
+          // We *always* attempt the file share first and fall back if it throws.
           if (file) {
-            await navigator.share({
-              title: "Boss Level Checker",
-              text: shareTextWithLink,
-              files: [file],
-            });
-            return;
+            try {
+              await navigator.share({ files: [file] });
+              return;
+            } catch (e1) {
+              // Some share sheets require a title/text to enable sharing; try again with text (no url field).
+              try {
+                await navigator.share({ title: "Boss Level Checker", text: shareTextWithLink, files: [file] });
+                return;
+              } catch (e2) {
+                // If file sharing isn't supported on this browser/OS, we fall through to the text/link share.
+              }
+            }
           }
         }
 
