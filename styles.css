@@ -39,7 +39,7 @@ body{
   width:100%;
   max-width: 448px; /* max-w-md */
   margin: 0 auto;               /* center on desktop */
-  padding: 28px 16px;           /* breathing room on all screens */
+  padding: 16px 16px;           /* breathing room on all screens */
 }
 
 .card{
@@ -47,20 +47,20 @@ body{
   background: var(--card);
   border: 1px solid var(--cardBorder);
   border-radius: 28px; /* rounded-3xl */
-  padding: 28px;
+  padding: 20px;
   box-shadow: 0 25px 60px rgba(0,0,0,0.45);
   backdrop-filter: blur(14px);
 }
 
 .header{
   text-align:center;
-  margin-bottom: 26px;
+  margin-bottom: 16px;
 }
 
 .logo{
-  width:64px;
-  height:64px;
-  margin: 0 auto 14px auto;
+  width:56px;
+  height:56px;
+  margin: 0 auto 10px auto;
   border-radius: 18px;
   display:flex;
   align-items:center;
@@ -71,7 +71,7 @@ body{
 
 .title{
   margin: 0 0 6px 0;
-  font-size: 28px;
+  font-size: 24px;
   line-height: 1.15;
   letter-spacing: -0.01em;
   font-weight: 800;
@@ -83,10 +83,10 @@ body{
   font-size: 14px;
 }
 
-.resultArea{ margin-bottom: 26px; }
+.resultArea{ margin-bottom: 16px; }
 
 .placeholder{
-  height: 160px;
+  height: 132px;
   border-radius: 18px;
   display:flex;
   align-items:center;
@@ -97,7 +97,7 @@ body{
 
 .placeholderText{
   color: var(--muted2);
-  font-size: 18px;
+  font-size: 16px;
 }
 
 .pulse{ animation: pulse 1.2s ease-in-out infinite; }
@@ -110,7 +110,7 @@ body{
   background: rgba(15,23,42,0.8);
   border: 1px solid rgba(51,65,85,1);
   border-radius: 18px;
-  padding: 22px;
+  padding: 18px;
   animation: zoomIn .30s ease-out both;
 }
 
@@ -123,7 +123,7 @@ body{
 
 .resultNumber{
   text-align:center;
-  font-size: 64px;
+  font-size: 54px;
   font-weight: 900;
   line-height: 1;
   margin-bottom: 6px;
@@ -131,10 +131,10 @@ body{
 
 .resultTier{
   text-align:center;
-  font-size: 18px;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: .08em;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .resultIcon{
@@ -150,12 +150,12 @@ body{
 
 .checkBtn{
   width: 100%;
-  height: 64px;
+  height: 58px;
   border: 0;
   border-radius: 14px;
   cursor: pointer;
   color: var(--white);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 900;
   background: linear-gradient(90deg, #f59e0b, #f97316, #ef4444);
   box-shadow: 0 14px 28px rgba(249,115,22,0.20);
@@ -176,7 +176,7 @@ body{
 }
 
 .checkBtn--thin{
-  height: 46px;
+  height: 42px;
   font-size: 16px;
   box-shadow: 0 10px 20px rgba(249,115,22,0.16);
 }
@@ -197,13 +197,13 @@ body{
 @keyframes spin{ to{ transform: rotate(360deg); } }
 
 .tiers{
-  margin-top: 26px;
-  padding-top: 18px;
+  margin-top: 16px;
+  padding-top: 14px;
   border-top: 1px solid rgba(51,65,85,1);
 }
 
 .tiersLabel{
-  margin: 0 0 10px 0;
+  margin: 0 0 8px 0;
   text-align:center;
   font-size: 11px;
   letter-spacing: .14em;
@@ -228,7 +228,7 @@ body{
   flex: 1 1 0;
   min-width: 64px;
   max-width: 120px;
-  padding: 10px 8px;
+  padding: 8px 8px;
   border-radius: 12px;
   background: rgba(15,23,42,0.5);
   text-align:center;
@@ -253,11 +253,11 @@ body{
 
 /* Footer area under the card */
 .footerArea{
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .fineLinks{
-  margin-top: 12px;
+  margin-top: 10px;
   text-align:center;
 }
 
@@ -320,8 +320,8 @@ body{
 
 /* Slightly larger typography on bigger screens */
 @media (min-width: 520px){
-  .card{ padding: 32px; }
-  .title{ font-size: 30px; }
+  .card{ padding: 22px; }
+  .title{ font-size: 26px; }
 }
 
 
