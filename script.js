@@ -518,13 +518,23 @@ const info = tierFor(level);
 
   function formatWhen(ts) {
     const now = Date.now();
-    const diffMs = now - ts;
+    const diffMs = Math.max(0, now - ts);
+    const hourMs = 60 * 60 * 1000;
     const dayMs = 24 * 60 * 60 * 1000;
-    const days = Math.floor(diffMs / dayMs);
 
-    if (days <= 0) return "Today";
-    if (days === 1) return "Yesterday";
-    if (days < 7) return `${days} days ago`;
+    // < 1 hour
+    if (diffMs < hourMs) return "Just now";
+
+    // 1–23 hours
+    const hours = Math.floor(diffMs / hourMs);
+    if (hours < 24) return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
+
+    // 24–47 hours
+    if (hours < 48) return "Yesterday";
+
+    const days = Math.floor(diffMs / dayMs);
+    // 2–13 days
+    if (days < 14) return `${days} days ago`;
 
     try {
       return new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(ts));
