@@ -505,6 +505,10 @@ const info = tierFor(level);
   }
 
   function restoreLastResult() {
+    try{
+      const _p=new URLSearchParams(location.search);
+      if(_p.has("s")) return false;
+    }catch(e){}
     try {
       const raw = localStorage.getItem(RESULT_KEY) || sessionStorage.getItem(RESULT_KEY);
       if (!raw) return false;
@@ -663,6 +667,13 @@ const info = tierFor(level);
     // Replace funny text with "Shared result" under the progress bar
     renderFunny("Shared result");
 
+    // Ensure it stays even if other init code runs
+    setTimeout(() => {
+      renderFunny("Shared result");
+      const funnyEl2 = progressBlock?.querySelector(".bossFunny");
+      if(funnyEl2) funnyEl2.style.opacity = "0.7";
+    }, 0);
+
     // Make it slightly grey (without changing CSS file)
     const funnyEl = progressBlock?.querySelector(".bossFunny");
     if(funnyEl) funnyEl.style.opacity = "0.7";
@@ -670,31 +681,31 @@ const info = tierFor(level);
 
   // --- Share: before roll share homepage; after roll share signed link + score/tier/emoji in text ---
   shareBtn?.addEventListener("click", async () => {
-    // Before any roll and not from a shared link: share homepage only
-    if(typeof currentLevel !== "number"){
-      const url = BASE_URL;
-      if(navigator.share){
-        try{ await navigator.share({ url }); return; } catch(e){}
-      }
-      // fallback copy
-      try{ await navigator.clipboard.writeText(url); } catch{}
+    // If no result yet → share homepage
+    if (typeof currentLevel !== "number") {
+      if (!navigator.share) return;
+      await navigator.share({
+        text: `Boss Level Checker
+${BASE_URL}`
+      });
       return;
     }
 
-    const info = tierFor(currentLevel);
-    const emojiMap = { sparkles:"✨", target:"🎯", zap:"⚡", crown:"👑", trophy:"🏆" };
-    const emoji = emojiMap[info.icon] || "👑";
+    const token = makeToken(currentLevel);
+    const signedUrl = `${BASE_URL}/index.html?s=${encodeURIComponent(token)}`;
+    const tier = tierFor(currentLevel).title;
+    const emojiMap = { Novice:"✨", Apprentice:"🎯", Rising:"⚡", Elite:"👑", Legendary:"🏆" };
+    const emoji = emojiMap[tier] || "👑";
 
-    const url = createSignedUrl(currentLevel);
-    const text = `🔥 I rolled ${currentLevel} – ${info.title} ${emoji}\nVerified link 👇`;
+    if (!navigator.share) return;
 
-    if(navigator.share){
-      try{ await navigator.share({ text, url }); return; } catch(e){}
-    }
-
-    // fallback copy: text + link
-    try{ await navigator.clipboard.writeText(text + "\n" + url); } catch{}
+    await navigator.share({
+      text: `🔥 I rolled ${currentLevel} – ${tier} BOSS ${emoji}
+Verified link 👇
+${signedUrl}`
+    });
   });
+
 
   function openHistory() {
     if (!historyModal) return;
@@ -712,36 +723,31 @@ const info = tierFor(level);
   });
 
   shareBtn?.addEventListener("click", async () => {
-    const url = String(location.href).split("#")[0];
-
-    // Mobile share sheet (if available)
-    if (navigator.share) {
-      try {
-        await navigator.share({ url });
-        return; // shared successfully
-      } catch (err) {
-        // user canceled -> do nothing (no copy message)
-        if (err && err.name === "AbortError") return;
-        // otherwise fall through to copy
-      }
+    // If no result yet → share homepage
+    if (typeof currentLevel !== "number") {
+      if (!navigator.share) return;
+      await navigator.share({
+        text: `Boss Level Checker
+${BASE_URL}`
+      });
+      return;
     }
 
-    // Desktop / fallback: copy link
-    try {
-      await navigator.clipboard.writeText(url);
+    const token = makeToken(currentLevel);
+    const signedUrl = `${BASE_URL}/index.html?s=${encodeURIComponent(token)}`;
+    const tier = tierFor(currentLevel).title;
+    const emojiMap = { Novice:"✨", Apprentice:"🎯", Rising:"⚡", Elite:"👑", Legendary:"🏆" };
+    const emoji = emojiMap[tier] || "👑";
 
-      shareBtn.textContent = "Boss link copied!";
-      shareBtn.disabled = true;
+    if (!navigator.share) return;
 
-      // always restore back to "Share" (never rely on prev)
-      setTimeout(() => {
-        shareBtn.textContent = "Share";
-        shareBtn.disabled = false;
-      }, 1000);
-    } catch {
-      window.prompt("Copy this link:", url);
-    }
+    await navigator.share({
+      text: `🔥 I rolled ${currentLevel} – ${tier} BOSS ${emoji}
+Verified link 👇
+${signedUrl}`
+    });
   });
+
 
 
 
