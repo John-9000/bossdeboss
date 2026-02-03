@@ -421,7 +421,7 @@ document.addEventListener("DOMContentLoaded", () => {
             setColor(svg, info.colorVar);
           }
         }
-        if (sharedLabel) sharedLabel.textContent = "( Shared score )";
+        if (sharedLabel) sharedLabel.textContent = " ";
       }
 
       sharedToMainBtn?.addEventListener("click", () => {
