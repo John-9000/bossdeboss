@@ -529,7 +529,7 @@ const info = tierFor(level);
 
     const tag = document.createElement("div");
     tag.className = "bossFunny bossFunny--shared";
-    tag.textContent = "Shared result";
+    tag.textContent = "-Shared result-";
 
     // Put it under the progress bar (inside the progress block)
     if (progressBlock) progressBlock.appendChild(tag);
@@ -718,8 +718,7 @@ function saveLastResult(level, funnyText) {
       const tierTitle = tierFor(currentLevel).title; // already includes "BOSS"
       const tierInfo = tierFor(currentLevel);
       const emoji = tierInfo.emoji || "👑";
-      const text = `🔥 I rolled ${currentLevel} – ${tierTitle} ${emoji}
-Verified link 👇`;
+      const text = `🔥 I rolled ${currentLevel} – ${tierTitle} ${emoji}`;
 
       if (navigator.share) {
         try {
