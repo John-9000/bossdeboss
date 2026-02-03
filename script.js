@@ -235,6 +235,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
     let currentLevel = null;
+    let sharedMode = false;
 
 // -------------------------
   // 1-hour cooldown (localStorage)
@@ -429,6 +430,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function showPlaceholder() {
     placeholder?.classList.remove("hidden");
     result?.classList.add("hidden");
+  
+    bossShareWrap?.classList.add("hidden");
   }
 
   function showResult(level) {
@@ -462,6 +465,8 @@ const info = tierFor(level);
     placeholder?.classList.add("hidden");
     result?.classList.remove("hidden");
     result?.querySelectorAll(".bossFunny--shared").forEach((n)=>n.remove());
+
+    if (!sharedMode) bossShareWrap?.classList.remove("hidden");
   }
 
   function updateLiveResult(level) {
@@ -681,6 +686,8 @@ function saveLastResult(level, funnyText) {
       const clean = `${location.pathname}${p.toString() ? "?" + p.toString() : ""}`;
       history.replaceState(null, "", clean);
       restoreLastResult();
+
+  bossShareWrap?.classList.add("hidden");
     }
   } else {
     // Restore last shown result/progress (e.g., after visiting Commercials and coming back)
@@ -690,6 +697,8 @@ function saveLastResult(level, funnyText) {
   // Top actions (Share / Boss History)
   const shareBtn = document.getElementById("shareBtn");
   const historyBtn = document.getElementById("historyBtn");
+  const bossShareWrap = document.getElementById("bossShareWrap");
+  const bossShareBtn = document.getElementById("bossShareBtn");
   const historyModal = document.getElementById("historyModal");
   const historyClose = document.getElementById("historyClose");
 
@@ -708,63 +717,31 @@ function saveLastResult(level, funnyText) {
     if (e.target === historyModal) closeHistory();
   });
 
-    shareBtn?.addEventListener("click", async () => {
-    // Before any result is shown -> share homepage only
-    const homepage = SITE_ORIGIN + "/";
 
-    // If we have a current result (rolled or shared), share signed link + text
-    if (typeof currentLevel === "number") {
-      const signedUrl = createSignedUrl(currentLevel);
-      const tierTitle = tierFor(currentLevel).title; // already includes "BOSS"
-      const tierInfo = tierFor(currentLevel);
-      const emoji = tierInfo.emoji || "👑";
-      const text = `🔥 I rolled ${currentLevel} – ${tierTitle} ${emoji}`;
-
-      if (navigator.share) {
-        try {
-          await navigator.share({ text, url: signedUrl });
-          return;
-        } catch (err) {
-          if (err && err.name === "AbortError") return;
-        }
-      }
-
-      // Desktop fallback: copy signed link
-      try {
-        await navigator.clipboard.writeText(signedUrl);
-        shareBtn.textContent = "Boss link copied!";
-        shareBtn.disabled = true;
-        setTimeout(() => {
-          shareBtn.textContent = "Share";
-          shareBtn.disabled = false;
-        }, 1000);
-      } catch {
-        window.prompt("Copy this link:", signedUrl);
-      }
-      return;
-    }
-
-    // No result yet -> homepage share
-    if (navigator.share) {
-      try {
-        await navigator.share({ url: homepage });
-        return;
-      } catch (err) {
-        if (err && err.name === "AbortError") return;
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(homepage);
-      shareBtn.textContent = "Boss link copied!";
-      shareBtn.disabled = true;
-      setTimeout(() => {
-        shareBtn.textContent = "Share";
-        shareBtn.disabled = false;
-      }, 1000);
-    } catch {
-      window.prompt("Copy this link:", homepage);
-    }
+  // Share button (top-left) always shares the site link (no score)
+  shareBtn?.addEventListener("click", async () => {
+    if (!navigator.share) return;
+    await navigator.share({
+      text: `Boss Level Checker
+${BASE_URL}`
+    });
   });
+
+  // Boss share button (inside result rectangle) shares the signed link + score/tier/emoji
+  bossShareBtn?.addEventListener("click", async () => {
+    if (typeof currentLevel !== "number") return;
+    if (!navigator.share) return;
+
+    const signedUrl = createSignedUrl(currentLevel);
+    const tierLabel = shortTierLabel(currentLevel);
+    const emoji = emojiForLevel(currentLevel);
+
+    await navigator.share({
+      text: `🔥 I rolled ${currentLevel} – ${tierLabel} BOSS ${emoji}
+${signedUrl}`
+    });
+  });
+
 
 
 
