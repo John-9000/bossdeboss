@@ -523,15 +523,16 @@ const info = tierFor(level);
 
   
   function renderSharedLabel(){
-    // Remove any existing funny text (from progress block or previous results)
+    // Remove any existing labels
     progressBlock?.querySelectorAll(".bossFunny").forEach((n) => n.remove());
     result?.querySelectorAll(".bossFunny").forEach((n) => n.remove());
 
     const tag = document.createElement("div");
     tag.className = "bossFunny bossFunny--shared";
     tag.textContent = "Shared result";
-    // Put it under the icon (inside the result box), without showing the progress bar
-    result?.appendChild(tag);
+
+    // Put it under the progress bar (inside the progress block)
+    if (progressBlock) progressBlock.appendChild(tag);
   }
 function saveLastResult(level, funnyText) {
     try {
@@ -667,11 +668,11 @@ function saveLastResult(level, funnyText) {
       placeholder?.classList.add("hidden");
       result?.classList.remove("hidden");
 
-      hideProgress(); // no progress UI for shared view
-      renderFunny(""); // remove any funny text in progress area
+      // Keep the empty progress bar visible at 0 for shared view
+      setProgress(0);
+      renderFunny(""); // clear any funny text
       renderSharedLabel();
-
-      showResult(parsed.score);
+showResult(parsed.score);
       // Do not restoreLastResult() when a shared link is present.
     } else {
       // invalid token -> clean URL
@@ -715,8 +716,10 @@ function saveLastResult(level, funnyText) {
     if (typeof currentLevel === "number") {
       const signedUrl = createSignedUrl(currentLevel);
       const tierTitle = tierFor(currentLevel).title; // already includes "BOSS"
-      const text = `🔥 I rolled ${currentLevel} – ${tierTitle} 🏆
-Check your boss level 👇`;
+      const tierInfo = tierFor(currentLevel);
+      const emoji = tierInfo.emoji || "👑";
+      const text = `🔥 I rolled ${currentLevel} – ${tierTitle} ${emoji}
+Verified link 👇`;
 
       if (navigator.share) {
         try {
