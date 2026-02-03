@@ -404,7 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
         if (sharedNumber) sharedNumber.textContent = "—";
         if (sharedTier) sharedTier.textContent = "INVALID LINK";
         if (sharedIcon) sharedIcon.innerHTML = "";
-        if (sharedLabel) sharedLabel.textContent = "( Shared score )";
+        if (sharedLabel) sharedLabel.textContent = " ";
       } else {
         const info = tierFor(level);
         if (sharedNumber) sharedNumber.textContent = String(level);
