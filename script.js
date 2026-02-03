@@ -529,7 +529,7 @@ const info = tierFor(level);
 
     const tag = document.createElement("div");
     tag.className = "bossFunny bossFunny--shared";
-    tag.textContent = "-Shared result-";
+    tag.textContent = "- Shared result -";
 
     // Put it under the progress bar (inside the progress block)
     if (progressBlock) progressBlock.appendChild(tag);
