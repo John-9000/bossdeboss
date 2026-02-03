@@ -623,3 +623,53 @@ a.checkBtn{ text-decoration:none; }
 
 /* Shared link label */
 .bossFunny--shared{ color: rgba(148,163,184,0.92); }
+
+/* Fix orphan ::before / ::after artifacts on ads page (mobile) */
+.card--ads *::before,
+.card--ads *::after{
+  content: none !important;
+}
+
+/* Fix AdSense left-edge placeholder artifact (mobile) */
+.adBox ins.adsbygoogle{
+  display: block !important;
+  width: 100% !important;
+  min-height: 250px;
+}
+
+.adBox iframe{
+  display: block !important;
+  width: 100% !important;
+}
+/* Share button inside the result rectangle (appears after roll) */
+.resultShareBtn{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.18);
+  background: rgba(15,23,42,0.55);
+  color: rgba(255,255,255,0.92);
+  font-weight: 900;
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  backdrop-filter: blur(10px);
+  z-index: 6;
+  transition: transform .18s ease, filter .18s ease;
+}
+.resultShareBtn:hover{ filter: brightness(1.06); transform: scale(1.03); }
+.resultShareBtn:active{ transform: scale(0.98); }
+
+/* "( Shared score )" label */
+.sharedLabel{
+  text-align:center;
+  font-size: 13px;
+  color: rgba(148,163,184,0.92);
+  margin-top: 10px;
+}
