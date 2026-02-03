@@ -12,6 +12,36 @@ const ICONS = {
   megaphone:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 11v2a2 2 0 0 0 2 2h2l5 4V5L7 9H5a2 2 0 0 0-2 2z"></path><path d="M16 8a3 3 0 0 1 0 8"></path><path d="M19 5a7 7 0 0 1 0 14"></path></svg>',
 };
+// ===== Signed link helpers =====
+const SHARE_SECRET = "bossdeboss_static_secret_v1";
+function checksum(str){
+  let h = 0;
+  for(let i=0;i<str.length;i++){ h = (h * 31 + str.charCodeAt(i)) >>> 0; }
+  return h.toString(36);
+}
+function makeToken(score){
+  const payload = String(score) + "|" + Date.now().toString(36);
+  const sig = checksum(payload + "|" + SHARE_SECRET);
+  return btoa(payload + "|" + sig);
+}
+function parseToken(token){
+  try{
+    const raw = atob(token);
+    const parts = raw.split("|");
+    if(parts.length !== 3) return null;
+    const [scoreStr, ts, sig] = parts;
+    const check = checksum(scoreStr + "|" + ts + "|" + SHARE_SECRET);
+    if(check !== sig) return null;
+    const score = parseInt(scoreStr,10);
+    if(!Number.isInteger(score) || score < 1 || score > 100) return null;
+    return { score };
+  }catch(e){ return null; }
+}
+function createSignedUrl(score){
+  // Use your real domain even if testing locally
+  return BASE_URL + "/index.html?s=" + encodeURIComponent(makeToken(score));
+}
+
 
 function tierFor(level) {
   if (level >= 90) return { title: "LEGENDARY BOSS", colorVar: "--yellow", icon: "trophy" };
@@ -378,6 +408,9 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function showResult(level) {
+    currentLevel = level;
+    __sharedMode = false;
+    document.getElementById('sharedLabel')?.remove();
     // No special cases: score 100 is treated like any other Legendary score.
     // Never load or show boss images.
     if (bossImage) {
@@ -602,6 +635,66 @@ const info = tierFor(level);
   const historyBtn = document.getElementById("historyBtn");
   const historyModal = document.getElementById("historyModal");
   const historyClose = document.getElementById("historyClose");
+
+  // --- Signed link: display shared result (no history), keep progress bar at 0 ---
+  (function handleSharedLink(){
+    const params = new URLSearchParams(location.search);
+    const token = params.get("s");
+    if(!token) return;
+
+    const parsed = parseToken(token);
+    if(!parsed) return;
+
+    __sharedMode = true;
+    currentLevel = parsed.score;
+
+    // Show result card (score/tier/icon) but keep progress block visible at 0
+    placeholder?.classList.add("hidden");
+    result?.classList.remove("hidden");
+
+    const info = tierFor(parsed.score);
+    resultNumber.textContent = String(parsed.score);
+    resultTier.textContent = info.title;
+    resultIcon.innerHTML = ICONS[info.icon] || "";
+
+    // Keep empty progress bar with 0
+    setProgress(0);
+
+    // Replace funny text with "Shared result" under the progress bar
+    renderFunny("Shared result");
+
+    // Make it slightly grey (without changing CSS file)
+    const funnyEl = progressBlock?.querySelector(".bossFunny");
+    if(funnyEl) funnyEl.style.opacity = "0.7";
+  })();
+
+  // --- Share: before roll share homepage; after roll share signed link + score/tier/emoji in text ---
+  shareBtn?.addEventListener("click", async () => {
+    // Before any roll and not from a shared link: share homepage only
+    if(typeof currentLevel !== "number"){
+      const url = BASE_URL;
+      if(navigator.share){
+        try{ await navigator.share({ url }); return; } catch(e){}
+      }
+      // fallback copy
+      try{ await navigator.clipboard.writeText(url); } catch{}
+      return;
+    }
+
+    const info = tierFor(currentLevel);
+    const emojiMap = { sparkles:"✨", target:"🎯", zap:"⚡", crown:"👑", trophy:"🏆" };
+    const emoji = emojiMap[info.icon] || "👑";
+
+    const url = createSignedUrl(currentLevel);
+    const text = `🔥 I rolled ${currentLevel} – ${info.title} ${emoji}\nVerified link 👇`;
+
+    if(navigator.share){
+      try{ await navigator.share({ text, url }); return; } catch(e){}
+    }
+
+    // fallback copy: text + link
+    try{ await navigator.clipboard.writeText(text + "\n" + url); } catch{}
+  });
 
   function openHistory() {
     if (!historyModal) return;
