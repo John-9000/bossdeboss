@@ -1,4 +1,3 @@
-const BASE_URL = "https://www.bossdeboss.co.uk";
 const ICONS = {
   crown:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l4 6 5-7 5 7 4-6v13H3V7z"></path><path d="M3 20h18"></path></svg>',
@@ -183,61 +182,7 @@ function setColor(el, cssVarName) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // --- Signed share links (display-only shared results) ---
-  const SITE_ORIGIN = location.hostname.endsWith("bossdeboss.co.uk")
-    ? "https://www.bossdeboss.co.uk"
-    : BASE_URL;
-
-  // Note: on a static site, "signed" means "tamper-resistant for normal users".
-  const SHARE_SECRET = "bossdeboss_signed_v1";
-
-  function b64urlEncode(str){
-    return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-  }
-  function b64urlDecode(str){
-    const pad = str.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = pad + "===".slice((pad.length + 3) % 4);
-    return decodeURIComponent(escape(atob(padded)));
-  }
-  function checksum(str){
-    let h = 2166136261; // FNV-1a
-    for(let i=0;i<str.length;i++){
-      h ^= str.charCodeAt(i);
-      h = Math.imul(h, 16777619);
-    }
-    return (h >>> 0).toString(36);
-  }
-  function makeToken(score){
-    const ts = Date.now().toString(36);
-    const payload = `${score}|${ts}`;
-    const sig = checksum(payload + "|" + SHARE_SECRET);
-    return b64urlEncode(`${payload}|${sig}`);
-  }
-  function parseToken(token){
-    try{
-      const raw = b64urlDecode(token);
-      const parts = raw.split("|");
-      if(parts.length !== 3) return null;
-      const [scoreStr, ts, sig] = parts;
-      const payload = `${scoreStr}|${ts}`;
-      if(checksum(payload + "|" + SHARE_SECRET) !== sig) return null;
-
-      const score = parseInt(scoreStr, 10);
-      if(!Number.isInteger(score) || score < 1 || score > 100) return null;
-      return { score };
-    }catch{
-      return null;
-    }
-  }
-  function createSignedUrl(score){
-    const token = makeToken(score);
-    return `${SITE_ORIGIN}${location.pathname}?s=${encodeURIComponent(token)}`;
-  }
-
-    let currentLevel = null;
-    let sharedMode = false;
-
-// -------------------------
+  // -------------------------
   // 1-hour cooldown (localStorage)
   // -------------------------
   const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
@@ -360,6 +305,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Boss checker (only on index.html)
   // -------------------------
   const checkBtn = document.getElementById("checkBtn");
+  let currentLevel = null;
   if (!checkBtn) return; // not on the home page
 
   const placeholder = document.getElementById("placeholder");
@@ -430,13 +376,9 @@ document.addEventListener("DOMContentLoaded", () => {
   function showPlaceholder() {
     placeholder?.classList.remove("hidden");
     result?.classList.add("hidden");
-  
-    bossShareWrap?.classList.add("hidden");
   }
 
   function showResult(level) {
-    currentLevel = level;
-
     // No special cases: score 100 is treated like any other Legendary score.
     // Never load or show boss images.
     if (bossImage) {
@@ -464,9 +406,9 @@ const info = tierFor(level);
 
     placeholder?.classList.add("hidden");
     result?.classList.remove("hidden");
-    result?.querySelectorAll(".bossFunny--shared").forEach((n)=>n.remove());
-
-    if (!sharedMode) bossShareWrap?.classList.remove("hidden");
+  
+    currentLevel = level;
+    if (bossShareWrap) bossShareWrap.classList.remove("hidden");
   }
 
   function updateLiveResult(level) {
@@ -526,20 +468,7 @@ const info = tierFor(level);
     progressBlock.appendChild(funny);
   }
 
-  
-  function renderSharedLabel(){
-    // Remove any existing labels
-    progressBlock?.querySelectorAll(".bossFunny").forEach((n) => n.remove());
-    result?.querySelectorAll(".bossFunny").forEach((n) => n.remove());
-
-    const tag = document.createElement("div");
-    tag.className = "bossFunny bossFunny--shared";
-    tag.textContent = "( Shared )";
-
-    // Put it under the progress bar (inside the progress block)
-    if (progressBlock) progressBlock.appendChild(tag);
-  }
-function saveLastResult(level, funnyText) {
+  function saveLastResult(level, funnyText) {
     try {
       localStorage.setItem(RESULT_KEY, JSON.stringify({ level, funnyText }));
       sessionStorage.setItem(RESULT_KEY, JSON.stringify({ level, funnyText }));
@@ -557,6 +486,8 @@ function saveLastResult(level, funnyText) {
       showResult(level);
       setProgress(level); // keep progress bar + number under the result
       renderFunny(parsed?.funnyText || "");
+      currentLevel = level;
+      if (bossShareWrap) bossShareWrap.classList.remove("hidden");
       return true;
 
     } catch {
@@ -663,45 +594,71 @@ function saveLastResult(level, funnyText) {
   updateCooldownUI();
   startCooldownTicker();
 
-
-  // If opened from a signed shared link, show that score in the rectangle (display-only),
-  // keep "Check My Boss Level" active, and DO NOT write to history or saved result.
-  const sharedToken = new URLSearchParams(location.search).get("s");
-  if (sharedToken) {
-    const parsed = parseToken(sharedToken);
-    if (parsed) {
-      placeholder?.classList.add("hidden");
-      result?.classList.remove("hidden");
-
-      // Keep the empty progress bar visible at 0 for shared view
-      setProgress(0);
-      renderFunny(""); // clear any funny text
-      showResult(parsed.score);
-      renderSharedLabel();
-      // Do not restoreLastResult() when a shared link is present.
-    } else {
-      // invalid token -> clean URL
-      const p = new URLSearchParams(location.search);
-      p.delete("s");
-      const clean = `${location.pathname}${p.toString() ? "?" + p.toString() : ""}`;
-      history.replaceState(null, "", clean);
-      restoreLastResult();
-
-  bossShareWrap?.classList.add("hidden");
-    }
-  } else {
-    // Restore last shown result/progress (e.g., after visiting Commercials and coming back)
-    restoreLastResult();
-  }
+  // Restore last shown result/progress (e.g., after visiting Commercials and coming back)
+  restoreLastResult();
 
   // Top actions (Share / Boss History)
   const shareBtn = document.getElementById("shareBtn");
   const historyBtn = document.getElementById("historyBtn");
-  const bossShareWrap = document.getElementById("bossShareWrap");
-  const bossShareBtn = document.getElementById("bossShareBtn");
   const historyModal = document.getElementById("historyModal");
   const historyClose = document.getElementById("historyClose");
 
+
+  const bossShareWrap = document.getElementById("bossShareWrap");
+  const bossShareBtn = document.getElementById("bossShareBtn");
+
+  // Signed-link helpers (static-site "best effort" signing)
+  const SHARE_SECRET = "bossdeboss_static_secret_v1";
+  function checksum(str){
+    let h = 0;
+    for(let i=0;i<str.length;i++) h = (h * 31 + str.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+  }
+  function makeToken(score){
+    const payload = `${score}|${Date.now()}`;
+    const sig = checksum(payload + SHARE_SECRET);
+    return btoa(`${payload}|${sig}`);
+  }
+  function parseToken(token){
+    try{
+      const raw = atob(token);
+      const parts = raw.split("|");
+      if(parts.length !== 3) return null;
+      const [scoreStr, ts, sig] = parts;
+      const expected = checksum(`${scoreStr}|${ts}` + SHARE_SECRET);
+      if(expected !== sig) return null;
+      const score = parseInt(scoreStr, 10);
+      if(!Number.isInteger(score) || score < 1 || score > 100) return null;
+      return { score };
+    }catch(e){ return null; }
+  }
+  function createSignedLink(score){
+    return `${BASE_URL}/?s=${encodeURIComponent(makeToken(score))}`;
+  }
+  function emojiForLevel(level){
+    const icon = tierFor(level).icon;
+    const map = { sparkles:"✨", target:"🎯", zap:"⚡", crown:"👑", trophy:"🏆", megaphone:"📣" };
+    return map[icon] || "👑";
+  }
+
+  function showSharedLabel(){
+    renderFunny("Shared result");
+    const n = progressBlock?.querySelector(".bossFunny");
+    if(n) n.classList.add("bossFunny--shared");
+  }
+
+  // If opened from a signed shared link: show score/tier/icon, keep progress at 0, no history save
+  (function(){
+    const params = new URLSearchParams(location.search);
+    const token = params.get("s");
+    if(!token) return;
+    const parsed = parseToken(token);
+    if(!parsed) return;
+
+    showResult(parsed.score);
+    setProgress(0);
+    showSharedLabel();
+  })();
   function openHistory() {
     if (!historyModal) return;
     renderHistory();
@@ -717,31 +674,69 @@ function saveLastResult(level, funnyText) {
     if (e.target === historyModal) closeHistory();
   });
 
-
-  // Share button (top-left) always shares the site link (no score)
   shareBtn?.addEventListener("click", async () => {
-    if (!navigator.share) return;
-    await navigator.share({
-      text: `Boss Level Checker
-${BASE_URL}`
-    });
+    const url = BASE_URL;
+
+    // Mobile share sheet (if available)
+    if (navigator.share) {
+      try {
+        await navigator.share({ url });
+        return; // shared successfully
+      } catch (err) {
+        // user canceled -> do nothing (no copy message)
+        if (err && err.name === "AbortError") return;
+        // otherwise fall through to copy
+      }
+    }
+
+    // Desktop / fallback: copy link
+    try {
+      await navigator.clipboard.writeText(url);
+
+      shareBtn.textContent = "Boss link copied!";
+      shareBtn.disabled = true;
+
+      // always restore back to "Share" (never rely on prev)
+      setTimeout(() => {
+        shareBtn.textContent = "Share";
+        shareBtn.disabled = false;
+      }, 1000);
+    } catch {
+      window.prompt("Copy this link:", url);
+    }
   });
 
-  // Boss share button (inside result rectangle) shares the signed link + score/tier/emoji
+  // Boss share: shares score + tier + emoji + SIGNED link (as text, best for WhatsApp)
   bossShareBtn?.addEventListener("click", async () => {
     if (typeof currentLevel !== "number") return;
-    if (!navigator.share) return;
 
-    const signedUrl = createSignedUrl(currentLevel);
-    const tierLabel = shortTierLabel(currentLevel);
+    const tier = tierFor(currentLevel).title;
     const emoji = emojiForLevel(currentLevel);
+    const signed = createSignedLink(currentLevel);
 
-    await navigator.share({
-      text: `🔥 I rolled ${currentLevel} – ${tierLabel} BOSS ${emoji}
-${signedUrl}`
-    });
+    const text = `🔥 ${currentLevel} – ${tier} ${emoji}\n${signed}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        if (err && err.name === "AbortError") return;
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      bossShareBtn.textContent = "Copied!";
+      bossShareBtn.disabled = true;
+      setTimeout(() => {
+        bossShareBtn.textContent = "Boss share";
+        bossShareBtn.disabled = false;
+      }, 1000);
+    } catch {
+      window.prompt("Copy this:", text);
+    }
   });
-
 
 
 
@@ -804,15 +799,17 @@ ${signedUrl}`
       // Finish
       setProgress(level); // ensure exact
 
-      showResult(level);
       const tierKey = tierFor(level).title.replace(/\s*BOSS/i, "").toLowerCase();
       const arr = FUNNY_TEXTS[tierKey] || [];
       const funnyText = (arr[Math.floor(Math.random() * arr.length)] || "");
 
       renderFunny(funnyText);
 
+      showResult(level);
       saveLastResult(level, funnyText);
       saveHistory(level);
+
+
 
       setAnimating(false);
       timer = null;
