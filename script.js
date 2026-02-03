@@ -671,8 +671,8 @@ function saveLastResult(level, funnyText) {
       // Keep the empty progress bar visible at 0 for shared view
       setProgress(0);
       renderFunny(""); // clear any funny text
+      showResult(parsed.score);
       renderSharedLabel();
-showResult(parsed.score);
       // Do not restoreLastResult() when a shared link is present.
     } else {
       // invalid token -> clean URL
