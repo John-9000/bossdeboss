@@ -1,3 +1,4 @@
+const BASE_URL = "https://www.bossdeboss.co.uk";
 const ICONS = {
   crown:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7l4 6 5-7 5 7 4-6v13H3V7z"></path><path d="M3 20h18"></path></svg>',
@@ -182,9 +183,60 @@ function setColor(el, cssVarName) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // Canonical public URL for sharing (avoid sharing local file paths, hashes, etc.)
-  const SHARE_BASE_URL = "https://www.bossdeboss.co.uk/";
-  // -------------------------
+  // --- Signed share links (display-only shared results) ---
+  const SITE_ORIGIN = location.hostname.endsWith("bossdeboss.co.uk")
+    ? "https://www.bossdeboss.co.uk"
+    : BASE_URL;
+
+  // Note: on a static site, "signed" means "tamper-resistant for normal users".
+  const SHARE_SECRET = "bossdeboss_signed_v1";
+
+  function b64urlEncode(str){
+    return btoa(unescape(encodeURIComponent(str))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
+  }
+  function b64urlDecode(str){
+    const pad = str.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = pad + "===".slice((pad.length + 3) % 4);
+    return decodeURIComponent(escape(atob(padded)));
+  }
+  function checksum(str){
+    let h = 2166136261; // FNV-1a
+    for(let i=0;i<str.length;i++){
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return (h >>> 0).toString(36);
+  }
+  function makeToken(score){
+    const ts = Date.now().toString(36);
+    const payload = `${score}|${ts}`;
+    const sig = checksum(payload + "|" + SHARE_SECRET);
+    return b64urlEncode(`${payload}|${sig}`);
+  }
+  function parseToken(token){
+    try{
+      const raw = b64urlDecode(token);
+      const parts = raw.split("|");
+      if(parts.length !== 3) return null;
+      const [scoreStr, ts, sig] = parts;
+      const payload = `${scoreStr}|${ts}`;
+      if(checksum(payload + "|" + SHARE_SECRET) !== sig) return null;
+
+      const score = parseInt(scoreStr, 10);
+      if(!Number.isInteger(score) || score < 1 || score > 100) return null;
+      return { score };
+    }catch{
+      return null;
+    }
+  }
+  function createSignedUrl(score){
+    const token = makeToken(score);
+    return `${SITE_ORIGIN}${location.pathname}?s=${encodeURIComponent(token)}`;
+  }
+
+    let currentLevel = null;
+
+// -------------------------
   // 1-hour cooldown (localStorage)
   // -------------------------
   const COOLDOWN_MS = 60 * 60 * 1000; // 1 hour
@@ -380,6 +432,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function showResult(level) {
+    currentLevel = level;
+
     // No special cases: score 100 is treated like any other Legendary score.
     // Never load or show boss images.
     if (bossImage) {
@@ -407,6 +461,7 @@ const info = tierFor(level);
 
     placeholder?.classList.add("hidden");
     result?.classList.remove("hidden");
+    result?.querySelectorAll(".bossFunny--shared").forEach((n)=>n.remove());
   }
 
   function updateLiveResult(level) {
@@ -466,7 +521,19 @@ const info = tierFor(level);
     progressBlock.appendChild(funny);
   }
 
-  function saveLastResult(level, funnyText) {
+  
+  function renderSharedLabel(){
+    // Remove any existing funny text (from progress block or previous results)
+    progressBlock?.querySelectorAll(".bossFunny").forEach((n) => n.remove());
+    result?.querySelectorAll(".bossFunny").forEach((n) => n.remove());
+
+    const tag = document.createElement("div");
+    tag.className = "bossFunny bossFunny--shared";
+    tag.textContent = "Shared result";
+    // Put it under the icon (inside the result box), without showing the progress bar
+    result?.appendChild(tag);
+  }
+function saveLastResult(level, funnyText) {
     try {
       localStorage.setItem(RESULT_KEY, JSON.stringify({ level, funnyText }));
       sessionStorage.setItem(RESULT_KEY, JSON.stringify({ level, funnyText }));
@@ -590,27 +657,34 @@ const info = tierFor(level);
   updateCooldownUI();
   startCooldownTicker();
 
-  // Restore last shown result/progress (e.g., after visiting Commercials and coming back)
-  restoreLastResult();
 
-  // If the page is opened with a share link like ?score=85,
-  // display that score immediately (without triggering cooldown).
-  (function restoreFromQueryScore() {
-    try {
-      const u = new URL(window.location.href);
-      const raw = u.searchParams.get("score");
-      if (!raw) return;
-      const lvl = Number(raw);
-      if (!Number.isFinite(lvl) || lvl < 1 || lvl > 100) return;
+  // If opened from a signed shared link, show that score in the rectangle (display-only),
+  // keep "Check My Boss Level" active, and DO NOT write to history or saved result.
+  const sharedToken = new URLSearchParams(location.search).get("s");
+  if (sharedToken) {
+    const parsed = parseToken(sharedToken);
+    if (parsed) {
+      placeholder?.classList.add("hidden");
+      result?.classList.remove("hidden");
 
-      showResult(Math.round(lvl));
-      setProgress(Math.round(lvl));
-      // No funny text for shared links (keeps it clean and consistent)
-      renderFunny("");
-    } catch {
-      // ignore
+      hideProgress(); // no progress UI for shared view
+      renderFunny(""); // remove any funny text in progress area
+      renderSharedLabel();
+
+      showResult(parsed.score);
+      // Do not restoreLastResult() when a shared link is present.
+    } else {
+      // invalid token -> clean URL
+      const p = new URLSearchParams(location.search);
+      p.delete("s");
+      const clean = `${location.pathname}${p.toString() ? "?" + p.toString() : ""}`;
+      history.replaceState(null, "", clean);
+      restoreLastResult();
     }
-  })();
+  } else {
+    // Restore last shown result/progress (e.g., after visiting Commercials and coming back)
+    restoreLastResult();
+  }
 
   // Top actions (Share / Boss History)
   const shareBtn = document.getElementById("shareBtn");
@@ -633,171 +707,60 @@ const info = tierFor(level);
     if (e.target === historyModal) closeHistory();
   });
 
-  shareBtn?.addEventListener("click", async () => {
-    // Before roll (no visible result): share the home link only.
-    // After roll (result visible): share text + a result link (?score=XX).
-    const resultVisible = !!(result && !result.classList.contains("hidden")) && !!(placeholder && placeholder.classList.contains("hidden"));
-    const maybeLevel = Number(resultNumber?.textContent || "");
-    const hasLevel = resultVisible && Number.isFinite(maybeLevel) && maybeLevel >= 1 && maybeLevel <= 100;
+    shareBtn?.addEventListener("click", async () => {
+    // Before any result is shown -> share homepage only
+    const homepage = SITE_ORIGIN + "/";
 
-    let shareUrl = SHARE_BASE_URL;
-    let shareText = "";
+    // If we have a current result (rolled or shared), share signed link + text
+    if (typeof currentLevel === "number") {
+      const signedUrl = createSignedUrl(currentLevel);
+      const tierTitle = tierFor(currentLevel).title; // already includes "BOSS"
+      const text = `🔥 I rolled ${currentLevel} – ${tierTitle} 🏆
+Check your boss level 👇`;
 
-    if (hasLevel) {
-      const level = Math.round(maybeLevel);
-      const info = tierFor(level);
-
-      const emojiByIcon = {
-        trophy: "🏆",
-        crown: "👑",
-        zap: "⚡",
-        target: "🎯",
-        sparkles: "✨",
-        megaphone: "📣",
-      };
-      const emoji = emojiByIcon[info.icon] || "👑";
-
-      shareUrl = `${SHARE_BASE_URL}?score=${encodeURIComponent(String(level))}`;
-      shareText = `🔥 I rolled ${level} – ${info.title} ${emoji}\nCheck your boss level 👉 ${SHARE_BASE_URL}`;
-    }
-
-    // When sharing an *image file*, many apps (notably WhatsApp on Android) may ignore the file
-    // if a separate `url` field is provided. So for file shares we embed the link in the text.
-    const shareTextWithLink = hasLevel ? `${shareText}\n${shareUrl}` : shareText;
-
-    async function buildShareCardFile(level, mimeType) {
-      // Create a square "result card" image with: score, tier, icon, score.
-      // We try JPEG first because some share targets (notably WhatsApp) are more reliable with it.
-      const info = tierFor(level);
-      const color = getComputedStyle(document.documentElement).getPropertyValue(info.colorVar).trim() || "#ffffff";
-
-      const canvas = document.createElement("canvas");
-      const size = 720;
-      canvas.width = size;
-      canvas.height = size;
-      const ctx = canvas.getContext("2d");
-      if (!ctx) return null;
-
-      // Background gradient similar to the site
-      const g = ctx.createLinearGradient(0, 0, size, size);
-      g.addColorStop(0, "#0f172a");
-      g.addColorStop(0.5, "#1f2937");
-      g.addColorStop(1, "#0f172a");
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, size, size);
-
-      // Typography
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillStyle = color;
-
-      // Big score
-      ctx.font = "900 220px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
-      ctx.fillText(String(level), size / 2, 190);
-
-      // Tier
-      ctx.font = "900 64px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
-      ctx.fillText(info.title, size / 2, 330);
-
-      // Icon (SVG -> Image)
-      const rawSvg = ICONS[info.icon] || ICONS.crown;
-      const svgColored = String(rawSvg)
-        .replace(/stroke=\"currentColor\"/g, `stroke=\"${color}\"`)
-        .replace(/width=\"\d+\"/g, "")
-        .replace(/height=\"\d+\"/g, "");
-
-      const svg = `<?xml version=\"1.0\" encoding=\"UTF-8\"?>${svgColored}`;
-      const img = new Image();
-      img.decoding = "async";
-      img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
-
-      await new Promise((resolve) => {
-        img.onload = resolve;
-        img.onerror = resolve;
-      });
-
-      const iconSize = 160;
-      ctx.drawImage(img, (size - iconSize) / 2, 400, iconSize, iconSize);
-
-      // Small score at bottom
-      ctx.font = "900 120px system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial";
-      ctx.fillText(String(level), size / 2, 640);
-
-      const mt = mimeType || "image/jpeg";
-
-      // Some mobile browsers can return null from toBlob; fall back to dataURL.
-      let blob = await new Promise((resolve) => canvas.toBlob(resolve, mt, 0.92));
-      if (!blob) {
+      if (navigator.share) {
         try {
-          const dataUrl = canvas.toDataURL(mt);
-          const res = await fetch(dataUrl);
-          blob = await res.blob();
-        } catch {
-          blob = null;
+          await navigator.share({ text, url: signedUrl });
+          return;
+        } catch (err) {
+          if (err && err.name === "AbortError") return;
         }
       }
 
-      if (!blob) return null;
-      const ext = mt === "image/png" ? "png" : "jpg";
-      return new File([blob], `boss-score-${level}.${ext}`, { type: mt });
+      // Desktop fallback: copy signed link
+      try {
+        await navigator.clipboard.writeText(signedUrl);
+        shareBtn.textContent = "Boss link copied!";
+        shareBtn.disabled = true;
+        setTimeout(() => {
+          shareBtn.textContent = "Share";
+          shareBtn.disabled = false;
+        }, 1000);
+      } catch {
+        window.prompt("Copy this link:", signedUrl);
+      }
+      return;
     }
 
-    // Mobile share sheet (if available)
+    // No result yet -> homepage share
     if (navigator.share) {
       try {
-        // If we have a level, try sharing an image card (Option A)
-        if (hasLevel) {
-          const lvl = Math.round(maybeLevel);
-          const fileJpg = await buildShareCardFile(lvl, "image/jpeg");
-          const filePng = fileJpg ? null : await buildShareCardFile(lvl, "image/png");
-          const file = fileJpg || filePng;
-
-          // Prefer sharing the image file ONLY (no url/text), because WhatsApp often drops the image
-          // when a URL is present. User requested image-only sharing.
-          // We *always* attempt the file share first and fall back if it throws.
-          if (file) {
-            try {
-              await navigator.share({ files: [file] });
-              return;
-            } catch (e1) {
-              // Some share sheets require a title/text to enable sharing; try again with text (no url field).
-              try {
-                await navigator.share({ title: "Boss Level Checker", text: shareTextWithLink, files: [file] });
-                return;
-              } catch (e2) {
-                // If file sharing isn't supported on this browser/OS, we fall through to the text/link share.
-              }
-            }
-          }
-        }
-
-        // Otherwise fall back to sharing text/link
-        const payload = hasLevel
-          ? { title: "Boss Level Checker", text: shareTextWithLink }
-          : { title: "Boss Level Checker", url: shareUrl };
-        await navigator.share(payload);
-        return; // shared successfully
+        await navigator.share({ url: homepage });
+        return;
       } catch (err) {
-        // user canceled -> do nothing (no copy message)
         if (err && err.name === "AbortError") return;
-        // otherwise fall through to copy
       }
     }
-
-    // Desktop / fallback: copy text+link (or just the link before roll)
-    const toCopy = hasLevel ? `${shareTextWithLink}` : shareUrl;
     try {
-      await navigator.clipboard.writeText(toCopy);
-
-      shareBtn.textContent = hasLevel ? "Copied score!" : "Link copied!";
+      await navigator.clipboard.writeText(homepage);
+      shareBtn.textContent = "Boss link copied!";
       shareBtn.disabled = true;
-
       setTimeout(() => {
         shareBtn.textContent = "Share";
         shareBtn.disabled = false;
       }, 1000);
     } catch {
-      window.prompt("Copy this:", toCopy);
+      window.prompt("Copy this link:", homepage);
     }
   });
 
@@ -863,19 +826,14 @@ const info = tierFor(level);
       setProgress(level); // ensure exact
 
       showResult(level);
-      saveLastResult(level);
-      saveHistory(level);
       const tierKey = tierFor(level).title.replace(/\s*BOSS/i, "").toLowerCase();
       const arr = FUNNY_TEXTS[tierKey] || [];
       const funnyText = (arr[Math.floor(Math.random() * arr.length)] || "");
 
       renderFunny(funnyText);
 
-      showResult(level);
       saveLastResult(level, funnyText);
       saveHistory(level);
-
-
 
       setAnimating(false);
       timer = null;
