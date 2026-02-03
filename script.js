@@ -636,6 +636,16 @@ const info = tierFor(level);
   }
 // Top actions (Share / Boss History)
   const shareBtn = document.getElementById("shareBtn");
+  shareBtn?.addEventListener("click", async () => {
+    // If no result yet → share homepage
+    if (typeof currentLevel !== "number") {
+      if (!navigator.share) return;
+      await navigator.share({
+        text: `Boss Level Checker
+${BASE_URL}`
+      });
+      
+
   const historyBtn = document.getElementById("historyBtn");
   const historyModal = document.getElementById("historyModal");
   const historyClose = document.getElementById("historyClose");
@@ -680,15 +690,7 @@ const info = tierFor(level);
   })();
 
   // --- Share: before roll share homepage; after roll share signed link + score/tier/emoji in text ---
-  shareBtn?.addEventListener("click", async () => {
-    // If no result yet → share homepage
-    if (typeof currentLevel !== "number") {
-      if (!navigator.share) return;
-      await navigator.share({
-        text: `Boss Level Checker
-${BASE_URL}`
-      });
-      return;
+  return;
     }
 
     const token = makeToken(currentLevel);
@@ -722,15 +724,7 @@ ${signedUrl}`
     if (e.target === historyModal) closeHistory();
   });
 
-  shareBtn?.addEventListener("click", async () => {
-    // If no result yet → share homepage
-    if (typeof currentLevel !== "number") {
-      if (!navigator.share) return;
-      await navigator.share({
-        text: `Boss Level Checker
-${BASE_URL}`
-      });
-      return;
+  return;
     }
 
     const token = makeToken(currentLevel);
