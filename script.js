@@ -776,7 +776,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Keep the small share button in the score card working
+  // Small share button in the score card keeps its current behavior
   resultShareBtn?.addEventListener("click", async () => {
     await shareBossScore(currentLevel);
   });
@@ -802,53 +802,63 @@ document.addEventListener("DOMContentLoaded", () => {
   const shareSiteLinkBtn = document.getElementById("shareSiteLinkBtn");
   const shareBossScoreBtn = document.getElementById("shareBossScoreBtn");
 
-  function openShare(e) {
-    e?.preventDefault();
-    e?.stopPropagation();
+  function openShareModal() {
     if (!shareModal) return;
-
-    // 1 button if no score, 2 buttons if score exists
     const hasScore = Number.isFinite(currentLevel) && currentLevel >= 1 && currentLevel <= 100;
     shareBossScoreBtn?.classList.toggle("hidden", !hasScore);
-
     shareModal.classList.remove("hidden");
   }
 
-  function closeShare() {
+  function closeShareModal() {
     shareModal?.classList.add("hidden");
   }
 
-  shareBtn?.addEventListener("click", openShare);
-  shareClose?.addEventListener("click", closeShare);
-  shareModal?.addEventListener("click", (e) => {
-    if (e.target === shareModal) closeShare();
-  });
-
-  shareSiteLinkBtn?.addEventListener("click", async () => {
+  async function shareSiteLink() {
     const url = BASE_URL;
+    const text = "👑 Boss Level Checker";
 
-    // Mobile share sheet (WhatsApp etc.) requires HTTPS/localhost.
     if (navigator.share) {
       try {
-        await navigator.share({ url });
-        closeShare();
+        await navigator.share({ text, url });
         return;
       } catch {
         // user canceled or share failed -> fallback
       }
     }
 
+    // Fallback: copy link (and small text)
+    const payload = `${text}\n${url}`;
     try {
-      await navigator.clipboard.writeText(url);
+      await navigator.clipboard.writeText(payload);
     } catch {
-      prompt("Copy this:", url);
+      prompt("Copy this:", payload);
     }
-    closeShare();
+  }
+
+  // IMPORTANT: stop any other Share handlers from firing (native share / clipboard popups)
+  shareBtn?.addEventListener(
+    "click",
+    (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      openShareModal();
+    },
+    { passive: false }
+  );
+
+  shareClose?.addEventListener("click", closeShareModal);
+  shareModal?.addEventListener("click", (e) => {
+    if (e.target === shareModal) closeShareModal();
+  });
+
+  shareSiteLinkBtn?.addEventListener("click", async () => {
+    await shareSiteLink();
+    closeShareModal();
   });
 
   shareBossScoreBtn?.addEventListener("click", async () => {
     await shareBossScore(currentLevel);
-    closeShare();
+    closeShareModal();
   });
 
 
@@ -931,17 +941,3 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(tick);
   });
 });
-const shareBtn = document.getElementById("shareBtn");
-
-if (shareBtn) {
-  shareBtn.addEventListener("click", () => {
-    const url = "https://www.bossdeboss.co.uk";
-
-    if (navigator.share) {
-      navigator.share({ url });
-    } else {
-      navigator.clipboard.writeText(url);
-      alert("Link copied to clipboard");
-    }
-  });
-}
