@@ -776,6 +776,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // Keep the small share button in the score card working
   resultShareBtn?.addEventListener("click", async () => {
     await shareBossScore(currentLevel);
   });
@@ -795,23 +796,24 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target === historyModal) closeHistory();
   });
 
-  // Share modal (top Share button)
+  // Share modal (top-right Share button)
   const shareModal = document.getElementById("shareModal");
   const shareClose = document.getElementById("shareClose");
   const shareSiteLinkBtn = document.getElementById("shareSiteLinkBtn");
   const shareBossScoreBtn = document.getElementById("shareBossScoreBtn");
 
-  function openShare() {
+  function openShare(e) {
+    e?.preventDefault();
+    e?.stopPropagation();
     if (!shareModal) return;
 
-    // If no score yet, only allow "Share site link"
+    // 1 button if no score, 2 buttons if score exists
     const hasScore = Number.isFinite(currentLevel) && currentLevel >= 1 && currentLevel <= 100;
-    if (shareBossScoreBtn) {
-      shareBossScoreBtn.classList.toggle("hidden", !hasScore);
-    }
+    shareBossScoreBtn?.classList.toggle("hidden", !hasScore);
 
     shareModal.classList.remove("hidden");
   }
+
   function closeShare() {
     shareModal?.classList.add("hidden");
   }
@@ -825,13 +827,14 @@ document.addEventListener("DOMContentLoaded", () => {
   shareSiteLinkBtn?.addEventListener("click", async () => {
     const url = BASE_URL;
 
+    // Mobile share sheet (WhatsApp etc.) requires HTTPS/localhost.
     if (navigator.share) {
       try {
         await navigator.share({ url });
         closeShare();
         return;
       } catch {
-        // fall through to clipboard/prompt
+        // user canceled or share failed -> fallback
       }
     }
 
@@ -928,3 +931,17 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(tick);
   });
 });
+const shareBtn = document.getElementById("shareBtn");
+
+if (shareBtn) {
+  shareBtn.addEventListener("click", () => {
+    const url = "https://www.bossdeboss.co.uk";
+
+    if (navigator.share) {
+      navigator.share({ url });
+    } else {
+      navigator.clipboard.writeText(url);
+      alert("Link copied to clipboard");
+    }
+  });
+}
