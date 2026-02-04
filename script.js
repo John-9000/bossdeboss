@@ -748,13 +748,13 @@ document.addEventListener("DOMContentLoaded", () => {
   const historyBtn = document.getElementById("historyBtn");
   const historyModal = document.getElementById("historyModal");
   const historyClose = document.getElementById("historyClose");
-  resultShareBtn?.addEventListener("click", async () => {
-    if (!Number.isFinite(currentLevel) || currentLevel < 1 || currentLevel > 100) return;
+  async function shareBossScore(level) {
+    if (!Number.isFinite(level) || level < 1 || level > 100) return;
 
-    const url = await makeSignedScoreUrl(currentLevel);
-    const info = tierFor(currentLevel);
-    const emoji = shareEmojiFor(currentLevel);
-    const text = `${emoji} I rolled ${currentLevel} — ${info.title}`;
+    const url = await makeSignedScoreUrl(level);
+    const info = tierFor(level);
+    const emoji = shareEmojiFor(level);
+    const text = `${emoji} I rolled ${level} — ${info.title}`;
 
     // Mobile share sheet (WhatsApp etc.) requires HTTPS/localhost.
     if (navigator.share) {
@@ -774,6 +774,10 @@ document.addEventListener("DOMContentLoaded", () => {
       // last resort
       prompt("Copy this:", payload);
     }
+  }
+
+  resultShareBtn?.addEventListener("click", async () => {
+    await shareBossScore(currentLevel);
   });
 
   function openHistory() {
@@ -791,9 +795,57 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.target === historyModal) closeHistory();
   });
 
-  // Share button intentionally disabled (no-op)
-  shareBtn?.addEventListener("click", (e) => {
-    e.preventDefault();
+  // Share modal (top Share button)
+  const shareModal = document.getElementById("shareModal");
+  const shareClose = document.getElementById("shareClose");
+  const shareSiteLinkBtn = document.getElementById("shareSiteLinkBtn");
+  const shareBossScoreBtn = document.getElementById("shareBossScoreBtn");
+
+  function openShare() {
+    if (!shareModal) return;
+
+    // If no score yet, only allow "Share site link"
+    const hasScore = Number.isFinite(currentLevel) && currentLevel >= 1 && currentLevel <= 100;
+    if (shareBossScoreBtn) {
+      shareBossScoreBtn.classList.toggle("hidden", !hasScore);
+    }
+
+    shareModal.classList.remove("hidden");
+  }
+  function closeShare() {
+    shareModal?.classList.add("hidden");
+  }
+
+  shareBtn?.addEventListener("click", openShare);
+  shareClose?.addEventListener("click", closeShare);
+  shareModal?.addEventListener("click", (e) => {
+    if (e.target === shareModal) closeShare();
+  });
+
+  shareSiteLinkBtn?.addEventListener("click", async () => {
+    const url = BASE_URL;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ url });
+        closeShare();
+        return;
+      } catch {
+        // fall through to clipboard/prompt
+      }
+    }
+
+    try {
+      await navigator.clipboard.writeText(url);
+    } catch {
+      prompt("Copy this:", url);
+    }
+    closeShare();
+  });
+
+  shareBossScoreBtn?.addEventListener("click", async () => {
+    await shareBossScore(currentLevel);
+    closeShare();
   });
 
 
@@ -876,17 +928,3 @@ document.addEventListener("DOMContentLoaded", () => {
     requestAnimationFrame(tick);
   });
 });
-const shareBtn = document.getElementById("shareBtn");
-
-if (shareBtn) {
-  shareBtn.addEventListener("click", () => {
-    const url = "https://www.bossdeboss.co.uk";
-
-    if (navigator.share) {
-      navigator.share({ url });
-    } else {
-      navigator.clipboard.writeText(url);
-      alert("Link copied to clipboard");
-    }
-  });
-}
