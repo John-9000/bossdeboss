@@ -118,6 +118,13 @@ const FUNNY_TEXTS = {
     "Junior boss vibes. You’ll get there",
     "Still in tutorial mode 😄",
     "Small steps. Big boss later",
+    "Boss energy loading… please wait",
+        "Accidentally powerful",
+        "Still reading the tutorial",
+        "Boss in training wheels",
+        "Confidently unsure",
+        "Main character in the background",
+        "Pressed the boss button by mistake",
   ],
   apprentice: [
     "Boss with potential",
@@ -250,6 +257,12 @@ const FUNNY_TEXTS = {
     "Absolute unit of boss",
     "This is what power looks like",
     "You did not roll this, you earned it",
+           "Other bosses listen",
+        "Power level confidential",
+        "Destiny adjusted accordingly",
+        "Achieved boss enlightenment",
+        "The end credits roll early",
+        "Boss of bosses",
   ],
 };
 
