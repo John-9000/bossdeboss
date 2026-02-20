@@ -293,13 +293,27 @@ document.addEventListener("DOMContentLoaded", () => {
   function setLastCheck(ms) {
     localStorage.setItem(STORAGE_KEY, String(ms));
   }
-  function formatRemaining(ms) {
-    const totalSeconds = Math.ceil(ms / 1000);
-    const m = Math.floor(totalSeconds / 60);
-    const s = totalSeconds % 60;
-    if (m <= 0) return `${s}s`;
-    return `${m}m ${s}s`;
+function formatRemaining(ms) {
+  const totalSeconds = Math.max(0, Math.ceil(ms / 1000));
+
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const parts = [];
+
+  if (hours > 0) {
+    parts.push(`${hours}h`);
   }
+
+  if (minutes > 0 || hours > 0) {
+    parts.push(`${minutes}m`);
+  }
+
+  parts.push(`${seconds}s`);
+
+  return parts.join(" ");
+}
 
   // -------------------------
   // Cookie consent + AdSense load gating (localStorage)
